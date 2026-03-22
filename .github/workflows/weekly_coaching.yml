@@ -79,32 +79,27 @@ jobs:
               file_list_text = "\n".join(f"- {p.name}" for p in attachments)
               file_list_html = "".join(f"<li>{escape(p.name)}</li>" for p in attachments)
 
-              text_body = f"""Your weekly coaching report is ready.
+              text_body = (
+                  "Your weekly coaching report is ready.\n\n"
+                  "Attached files:\n"
+                  f"{file_list_text}\n\n"
+                  "This email was sent automatically by your GitHub Actions workflow.\n"
+              )
 
-Attached files:
-{file_list_text}
-
-This email was sent automatically by your GitHub Actions workflow.
-"""
-
-              html_body = f"""\
-<!DOCTYPE html>
-<html>
-  <body style="font-family: Arial, sans-serif; line-height: 1.5; color: #222;">
-    <h2 style="margin-bottom: 0.4em;">Weekly Coaching Report</h2>
-    <p>Your weekly coaching report is ready.</p>
-
-    <p><strong>Attached files:</strong></p>
-    <ul>
-      {file_list_html}
-    </ul>
-
-    <p style="margin-top: 1.5em; color: #666; font-size: 0.95em;">
-      This email was sent automatically by your GitHub Actions workflow.
-    </p>
-  </body>
-</html>
-"""
+              html_body = (
+                  "<!DOCTYPE html>"
+                  "<html>"
+                  "<body style='font-family: Arial, sans-serif; line-height: 1.5; color: #222;'>"
+                  "<h2 style='margin-bottom: 0.4em;'>Weekly Coaching Report</h2>"
+                  "<p>Your weekly coaching report is ready.</p>"
+                  "<p><strong>Attached files:</strong></p>"
+                  f"<ul>{file_list_html}</ul>"
+                  "<p style='margin-top: 1.5em; color: #666; font-size: 0.95em;'>"
+                  "This email was sent automatically by your GitHub Actions workflow."
+                  "</p>"
+                  "</body>"
+                  "</html>"
+              )
 
               msg.set_content(text_body)
               msg.add_alternative(html_body, subtype="html")
@@ -124,20 +119,22 @@ This email was sent automatically by your GitHub Actions workflow.
                           filename=file_path.name
                       )
           else:
-              text_body = """The workflow ran, but no report files were found in the reports directory.
+              text_body = (
+                  "The workflow ran, but no report files were found in the reports directory.\n\n"
+                  "Please check the GitHub Actions logs and artifacts.\n"
+              )
 
-Please check the GitHub Actions logs and artifacts.
-"""
-              html_body = """\
-<!DOCTYPE html>
-<html>
-  <body style="font-family: Arial, sans-serif; line-height: 1.5; color: #222;">
-    <h2 style="margin-bottom: 0.4em;">Weekly Coaching Report</h2>
-    <p>The workflow ran, but no report files were found in the <code>reports/</code> directory.</p>
-    <p>Please check the GitHub Actions logs and artifacts.</p>
-  </body>
-</html>
-"""
+              html_body = (
+                  "<!DOCTYPE html>"
+                  "<html>"
+                  "<body style='font-family: Arial, sans-serif; line-height: 1.5; color: #222;'>"
+                  "<h2 style='margin-bottom: 0.4em;'>Weekly Coaching Report</h2>"
+                  "<p>The workflow ran, but no report files were found in the "
+                  "<code>reports/</code> directory.</p>"
+                  "<p>Please check the GitHub Actions logs and artifacts.</p>"
+                  "</body>"
+                  "</html>"
+              )
 
               msg.set_content(text_body)
               msg.add_alternative(html_body, subtype="html")
