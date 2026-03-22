@@ -1,0 +1,16 @@
+Saved fat loss efficiency: reports\fat_loss_efficiency.csv
+Empty DataFrame
+Columns: [fasting_state, duration_days, avg_calories, fat_loss_kg, fat_loss_per_1000kcal]
+Index: []
+script: 47_fat_loss_efficiency.py
+description: Calculate fasting block fat loss efficiency
+started_at: 2026-03-20 11:02:23
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+project_root: C:\Users\mcman\fitness_dashboard
+================================================================================
+
+
+================================================================================
+finished_at: 2026-03-20 11:02:24
+elapsed_seconds: 1.20
+return_code: 0

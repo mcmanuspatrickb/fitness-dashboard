@@ -1,0 +1,31 @@
+Built clean.nutrition_daily with 851 rows.
+         date  calories  protein_g  ...  fiber_g  alcohol_g             source
+0  2026-03-19   1791.18     153.86  ...     7.83      19.81  cronometer_export
+1  2026-03-18   1188.63     102.96  ...     7.16       0.00  cronometer_export
+2  2026-03-17   1615.62     118.80  ...    19.08      24.03  cronometer_export
+3  2026-03-16   1514.22     107.93  ...     6.38       0.00  cronometer_export
+4  2026-03-15    973.81     118.15  ...     5.28       0.00  cronometer_export
+5  2026-03-14   1801.41     172.18  ...     9.66       0.00  cronometer_export
+6  2026-03-13   1272.58     129.39  ...     8.44       0.00  cronometer_export
+7  2026-03-12   2175.49     166.17  ...     8.78      39.68  cronometer_export
+8  2022-02-03   1784.00      92.20  ...     6.10        NaN        mfp_history
+9  2022-02-02   1592.00      81.90  ...    18.70        NaN        mfp_history
+10 2022-02-01   1440.00      90.10  ...    16.70        NaN        mfp_history
+11 2022-01-31   1550.00      98.50  ...    14.00        NaN        mfp_history
+12 2022-01-30   1662.80      79.30  ...    31.40        NaN        mfp_history
+13 2022-01-29   1550.00      98.50  ...    14.00        NaN        mfp_history
+14 2022-01-28   1752.80     113.30  ...    27.40        NaN        mfp_history
+
+[15 rows x 8 columns]
+script: 24_build_clean_nutrition_daily.py
+description: Build clean nutrition daily
+started_at: 2026-03-19 22:12:50
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+project_root: C:\Users\mcman\fitness_dashboard
+================================================================================
+
+
+================================================================================
+finished_at: 2026-03-19 22:12:51
+elapsed_seconds: 1.01
+return_code: 0

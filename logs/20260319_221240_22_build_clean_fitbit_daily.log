@@ -1,0 +1,31 @@
+Built clean.fitbit_daily with 1532 rows.
+         date  steps  ...  sleep_score  sleep_restlessness
+0  2026-03-14   1623  ...          NaN                 NaN
+1  2026-03-13   2306  ...          NaN                 NaN
+2  2026-03-12  11754  ...          NaN                 NaN
+3  2026-03-11   5542  ...          NaN                 NaN
+4  2026-03-10   4797  ...          NaN                 NaN
+5  2026-03-09  14918  ...          NaN                 NaN
+6  2026-03-08   4464  ...          NaN                 NaN
+7  2026-03-07   3707  ...          NaN                 NaN
+8  2026-03-06   3150  ...          NaN                 NaN
+9  2026-03-05  11762  ...          NaN                 NaN
+10 2026-03-04   8926  ...          NaN                 NaN
+11 2026-03-03  10639  ...          NaN                 NaN
+12 2026-03-02  11402  ...          NaN                 NaN
+13 2026-03-01   5820  ...          NaN                 NaN
+14 2026-02-28   6093  ...         86.0            0.078749
+
+[15 rows x 10 columns]
+script: 22_build_clean_fitbit_daily.py
+description: Build clean Fitbit daily
+started_at: 2026-03-19 22:12:48
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+project_root: C:\Users\mcman\fitness_dashboard
+================================================================================
+
+
+================================================================================
+finished_at: 2026-03-19 22:12:49
+elapsed_seconds: 1.21
+return_code: 0

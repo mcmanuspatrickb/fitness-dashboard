@@ -1,0 +1,3 @@
+"provider_id","sku","product_description","product_recurrence","start_date","valid_until","user_cancellation_date","trial_period","fatal_renewal_error","grant_bundle"
+"google","com.fitbit.external.prod.monthly.premium","Monthly Premium","MONTHLY","2021-02-20T18:56:46Z","2021-05-21T18:56:20Z","2021-05-14T18:58:52Z","true","false","eos"
+"google","com.fitbit.external.prod.annual.premium_ft6m_3","Annual Premium 6 Months Free Trial (Charge 5)","ANNUAL","2023-06-03T10:20:39Z","2023-12-03T10:19:16Z","2023-10-04T18:05:37Z","true","false","premium-ft6m_3"

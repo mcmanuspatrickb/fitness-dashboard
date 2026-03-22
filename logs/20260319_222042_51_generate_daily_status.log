@@ -1,0 +1,46 @@
+Saved daily status CSV to: reports\daily_status_latest.csv
+Saved daily status TXT to: reports\daily_status_latest.txt
+
+Current Status
+--------------
+date: 2026-03-19
+weight_kg: N/A
+fat_mass_kg: N/A
+lean_mass_kg: N/A
+steps: N/A
+sleep_hours: N/A
+resting_hr: N/A
+hrv: N/A
+calories: 1791.18
+protein_g: N/A
+carbs_g: 114.32
+fat_g: 64.07
+fiber_g: 7.83
+alcohol_g: 19.81
+fasting_state: normal
+fasting_hours: N/A
+mounjaro_mg: 5.00
+hunger_score: 3.00
+nutrition_source: cronometer_export
+
+7-Day Averages
+--------------
+avg_7d_weight_kg: 118.45
+avg_7d_fat_mass_kg: 37.19
+avg_7d_lean_mass_kg: 81.26
+avg_7d_steps: 1964
+avg_7d_sleep_hours: 7.92
+avg_7d_resting_hr: 74.50
+avg_7d_hrv: 14.16
+script: 51_generate_daily_status.py
+description: Generate daily status outputs
+started_at: 2026-03-19 22:20:44
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+project_root: C:\Users\mcman\fitness_dashboard
+================================================================================
+
+
+================================================================================
+finished_at: 2026-03-19 22:20:46
+elapsed_seconds: 1.38
+return_code: 0

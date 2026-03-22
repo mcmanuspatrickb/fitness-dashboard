@@ -1,0 +1,31 @@
+Intervention Insights
+=====================
+
+Coverage
+--------
+filtered_block_count: 0
+efficiency_row_count: 0
+tdee_row_count: 0
+blocks_with_fat_change: 0
+blocks_with_lean_change: 0
+
+Efficiency Overview
+-------------------
+best_fat_loss_per_1000kcal: N/A
+median_fat_loss_per_1000kcal: N/A
+mean_fat_loss_per_1000kcal: N/A
+
+TDEE Overview
+-------------
+median_estimated_tdee: N/A
+mean_estimated_tdee: N/A
+min_estimated_tdee: N/A
+max_estimated_tdee: N/A
+
+Top Fat-Loss Efficiency Blocks
+------------------------------
+No data available.
+
+Key Takeaways
+-------------
+- Not enough data yet to generate reliable intervention takeaways.

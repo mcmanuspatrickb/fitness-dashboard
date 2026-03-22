@@ -1,0 +1,5 @@
+id,template_id,title,body,destination,creation_time,event_type
+176440446770210280,peloton-premium-eligible,All-new Peloton workouts. Now available with Fitbit Premium.,,DESTINATION_COACH_ONBOARDING,2026-01-09T13:23:40.057605Z,MESSAGE_EVENT_TYPE_DISMISSED
+4054586058344118464,premium-stress-l2-trial,Discover physiological stress and how you manage it. Access hundreds of guided meditations and more with Fitbit Premium.,,DESTINATION_STRESS_SCORE_L2_PROMO,2026-01-31T06:24:44.088851Z,MESSAGE_EVENT_TYPE_DISMISSED
+5072585800831795144,premium-sleep-l2-trial,"With your sleep details, profile, guided meditations, and more, get better rest than ever with Fitbit Premium.",,DESTINATION_SLEEP_L2_PROMO,2026-02-02T06:16:03.249513Z,MESSAGE_EVENT_TYPE_DISMISSED
+4208782062772031096,premium-today-l1-trial,"Guidance, insights, and inspiration to live your healthiest every day","Trial available. Hundreds of workouts and more, with stress, sleep, and daily readiness insights.",DESTINATION_TODAY_PROMOTIONS,2026-02-13T09:56:31.987001Z,MESSAGE_EVENT_TYPE_DISMISSED

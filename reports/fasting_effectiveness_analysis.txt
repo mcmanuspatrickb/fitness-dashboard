@@ -1,0 +1,26 @@
+Fasting Effectiveness Analysis
+==============================
+
+States analyzed
+--------------
+normal: rows=607, range=2020-03-05 00:00:00→2026-03-19 00:00:00
+if: rows=131, range=2019-10-23 00:00:00→2020-03-01 00:00:00
+extended_fast: rows=70, range=2020-03-02 00:00:00→2021-05-03 00:00:00
+baseline: rows=49, range=2013-07-10 00:00:00→2016-03-31 00:00:00
+omad: rows=39, range=2020-03-16 00:00:00→2021-07-27 00:00:00
+
+Key Metrics by State
+--------------------
+normal: avg_hours=0.00, avg_weight=103.44, avg_fat_mass=29.54, avg_lean_mass=73.93, avg_steps=8247.86, avg_sleep=6.63, avg_rhr=74.54, avg_hrv=15.76, avg_calories=1646.32, avg_protein=N/A, avg_hunger=2.77
+if: avg_hours=16.00, avg_weight=115.45, avg_fat_mass=43.15, avg_lean_mass=72.28, avg_steps=N/A, avg_sleep=N/A, avg_rhr=N/A, avg_hrv=N/A, avg_calories=1383.57, avg_protein=N/A, avg_hunger=N/A
+extended_fast: avg_hours=281.83, avg_weight=99.71, avg_fat_mass=29.07, avg_lean_mass=70.65, avg_steps=8066.98, avg_sleep=6.82, avg_rhr=69.78, avg_hrv=17.17, avg_calories=28.40, avg_protein=N/A, avg_hunger=N/A
+baseline: avg_hours=N/A, avg_weight=118.58, avg_fat_mass=44.75, avg_lean_mass=73.92, avg_steps=N/A, avg_sleep=N/A, avg_rhr=N/A, avg_hrv=N/A, avg_calories=1878.88, avg_protein=N/A, avg_hunger=N/A
+omad: avg_hours=23.00, avg_weight=103.29, avg_fat_mass=30.97, avg_lean_mass=72.33, avg_steps=8343.00, avg_sleep=6.30, avg_rhr=75.40, avg_hrv=15.07, avg_calories=1101.55, avg_protein=N/A, avg_hunger=N/A
+
+Coverage
+--------
+normal: weight_days=317, fat_mass_days=316, lean_mass_days=316, step_days=479, sleep_days=423, rhr_days=420, hrv_days=331, calorie_days=573, protein_days=0, hunger_days=53
+if: weight_days=106, fat_mass_days=105, lean_mass_days=105, step_days=0, sleep_days=0, rhr_days=0, hrv_days=0, calorie_days=131, protein_days=0, hunger_days=0
+extended_fast: weight_days=68, fat_mass_days=68, lean_mass_days=68, step_days=42, sleep_days=36, rhr_days=36, hrv_days=19, calorie_days=70, protein_days=0, hunger_days=0
+baseline: weight_days=19, fat_mass_days=16, lean_mass_days=16, step_days=0, sleep_days=0, rhr_days=0, hrv_days=0, calorie_days=49, protein_days=0, hunger_days=0
+omad: weight_days=25, fat_mass_days=25, lean_mass_days=25, step_days=16, sleep_days=10, rhr_days=10, hrv_days=3, calorie_days=39, protein_days=0, hunger_days=0

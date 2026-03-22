@@ -1,0 +1,71 @@
+Optimal Fast Playbook
+=====================
+
+All Block Rankings
+------------------
+block 1: 2020-03-02 00:00:00→2020-03-04 00:00:00 | days=3 | grade=short_fast_promising | fat_share=2.36 | fast_fat=-0.80 | fast_lean=0.46 | rebound_fat_14d=1.68
+block 2: 2020-03-09 00:00:00→2020-03-11 00:00:00 | days=3 | grade=short_fast_mixed | fat_share=9.89 | fast_fat=3.59 | fast_lean=-3.95 | rebound_fat_14d=-2.39
+block 3: 2020-03-17 00:00:00→2020-03-18 00:00:00 | days=2 | grade=short_fast_promising | fat_share=3.34 | fast_fat=1.09 | fast_lean=-1.41 | rebound_fat_14d=-1.84
+block 4: 2020-03-29 00:00:00→2020-03-29 00:00:00 | days=1 | grade=insufficient_data | fat_share=N/A | fast_fat=0.00 | fast_lean=0.00 | rebound_fat_14d=-0.19
+block 5: 2020-05-06 00:00:00→2020-05-07 00:00:00 | days=2 | grade=short_fast_noisy | fat_share=0.34 | fast_fat=0.30 | fast_lean=-1.18 | rebound_fat_14d=-0.34
+block 6: 2020-06-19 00:00:00→2020-07-02 00:00:00 | days=14 | grade=mixed | fat_share=0.48 | fast_fat=-4.29 | fast_lean=-4.63 | rebound_fat_14d=-0.88
+block 7: 2020-09-05 00:00:00→2020-09-17 00:00:00 | days=13 | grade=strong | fat_share=0.70 | fast_fat=-5.24 | fast_lean=-2.22 | rebound_fat_14d=-2.34
+block 8: 2020-10-31 00:00:00→2020-11-02 00:00:00 | days=3 | grade=short_fast_noisy | fat_share=0.08 | fast_fat=0.13 | fast_lean=-1.68 | rebound_fat_14d=-2.66
+block 9: 2021-01-25 00:00:00→2021-02-07 00:00:00 | days=14 | grade=strong | fat_share=0.68 | fast_fat=-4.98 | fast_lean=-2.35 | rebound_fat_14d=N/A
+block 10: 2021-04-19 00:00:00→2021-05-03 00:00:00 | days=15 | grade=mixed | fat_share=0.90 | fast_fat=-5.59 | fast_lean=-0.61 | rebound_fat_14d=2.59
+
+Long Fast Reference Set
+-----------------------
+Using blocks with fast_days >= 10: 6, 7, 9, 10
+Reference blocks after excluding meaningful fat rebound (rebound_fat_14d > 1.0 when available): 7, 9
+
+Suggested Prep Targets
+----------------------
+prep3_calories: 1787.15
+prep5_calories: 1774.14
+prep7_calories: 1790.47
+prep3_protein:  103.15
+prep5_protein:  113.89
+prep7_protein:  114.32
+prep3_carbs:    121.30
+prep5_carbs:    120.47
+prep7_carbs:    119.06
+prep3_fat:      94.50
+prep5_fat:      91.88
+prep7_fat:      91.86
+prep3_steps:    5734.17
+prep5_steps:    5688.60
+prep7_steps:    5594.71
+prep3_sleep:    7.89
+prep5_sleep:    7.50
+prep7_sleep:    7.37
+prep3_rhr:      70.67
+prep5_rhr:      70.00
+prep7_rhr:      70.86
+prep3_hrv:      N/A
+prep5_hrv:      N/A
+prep7_hrv:      N/A
+
+Suggested Recovery Targets
+--------------------------
+recovery7_calories: 1690.82
+recovery7_protein:  119.16
+recovery7_carbs:    100.51
+recovery7_fat:      94.69
+recovery7_steps:    9493.57
+recovery7_sleep:    6.20
+recovery7_rhr:      69.69
+recovery7_hrv:      17.55
+
+Interpretation
+--------------
+This playbook is based on long fasts only.
+Blocks with clear fat regain by day 14 are excluded from the reference set when that rebound data exists.
+Use this as your practical template:
+- controlled prep calories
+- adequate protein before the fast
+- moderate carbs before the fast
+- controlled recovery calories
+- high protein during recovery
+- maintain steps during recovery
+- treat the refeed as part of the intervention, not the end of it

@@ -1,0 +1,16 @@
+Saved improved body composition analysis to: reports\fasting_bodycomp_quality.csv
+Empty DataFrame
+Columns: [fasting_state, start_date, end_date, duration_days, weight_change, fat_change, lean_change, fat_loss_percent, lean_loss_percent]
+Index: []
+script: 46_block_bodycomp_quality.py
+description: Analyze fasting block body composition quality
+started_at: 2026-03-20 11:02:21
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+project_root: C:\Users\mcman\fitness_dashboard
+================================================================================
+
+
+================================================================================
+finished_at: 2026-03-20 11:02:23
+elapsed_seconds: 1.53
+return_code: 0

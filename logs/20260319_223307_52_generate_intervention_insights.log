@@ -1,0 +1,26 @@
+Saved intervention insights CSV to: reports\intervention_insights_latest.csv
+Saved intervention insights TXT to: reports\intervention_insights_latest.txt
+
+Traceback (most recent call last):
+  File "C:\Users\mcman\fitness_dashboard\scripts\52_generate_intervention_insights.py", line 251, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\mcman\fitness_dashboard\scripts\52_generate_intervention_insights.py", line 247, in main
+    print("\n".join(lines))
+    ~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\mcman\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 581: character maps to <undefined>
+script: 52_generate_intervention_insights.py
+description: Generate intervention insights summary
+started_at: 2026-03-19 22:33:07
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+project_root: C:\Users\mcman\fitness_dashboard
+================================================================================
+
+
+================================================================================
+finished_at: 2026-03-19 22:33:09
+elapsed_seconds: 1.77
+return_code: 1

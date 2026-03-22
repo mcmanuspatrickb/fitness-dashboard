@@ -1,0 +1,52 @@
+
+Loaded files:
+ - filtered blocks: 0 rows, columns=['fasting_state', 'start_date', 'end_date', 'duration_days', 'weight_change', 'fat_change', 'lean_change', 'avg_calories', 'avg_protein', 'avg_steps', 'min_required']
+ - efficiency:      0 rows, columns=['fasting_state', 'start_date', 'end_date', 'duration_days', 'weight_change', 'fat_change', 'lean_change', 'avg_calories', 'avg_protein', 'avg_steps', 'min_required', 'daily_deficit', 'total_deficit', 'fat_loss_kg', 'fat_loss_per_1000kcal']
+ - tdee:            0 rows, columns=['fasting_state', 'start_date', 'end_date', 'duration_days', 'weight_change', 'fat_change', 'lean_change', 'avg_calories', 'avg_protein', 'avg_steps', 'min_required', 'fat_loss_kg', 'lean_loss_kg', 'daily_fat_kcal', 'daily_lean_kcal', 'energy_from_tissue', 'estimated_tdee']
+
+Saved intervention insights CSV to: reports\intervention_insights_latest.csv
+Saved intervention insights TXT to: reports\intervention_insights_latest.txt
+
+Intervention Insights
+=====================
+
+Coverage
+--------
+filtered_block_count: 0
+efficiency_row_count: 0
+tdee_row_count: 0
+blocks_with_fat_change: 0
+blocks_with_lean_change: 0
+
+Efficiency Overview
+-------------------
+best_fat_loss_per_1000kcal: N/A
+median_fat_loss_per_1000kcal: N/A
+mean_fat_loss_per_1000kcal: N/A
+
+TDEE Overview
+-------------
+median_estimated_tdee: N/A
+mean_estimated_tdee: N/A
+min_estimated_tdee: N/A
+max_estimated_tdee: N/A
+
+Top Fat-Loss Efficiency Blocks
+------------------------------
+No data available.
+
+Key Takeaways
+-------------
+- Not enough data yet to generate reliable intervention takeaways.
+script: 52_generate_intervention_insights.py
+description: Generate intervention insights summary
+started_at: 2026-03-19 22:36:59
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+project_root: C:\Users\mcman\fitness_dashboard
+================================================================================
+
+
+================================================================================
+finished_at: 2026-03-19 22:37:00
+elapsed_seconds: 0.84
+return_code: 0

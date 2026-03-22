@@ -1,0 +1,38 @@
+FITNESS DASHBOARD PIPELINE RUN
+================================================================================
+run_id: 20260320_110209
+started_at: 2026-03-20 11:02:09
+project_root: C:\Users\mcman\fitness_dashboard
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+
+planned_steps:
+ 1. 30_build_daily_metrics.py — Build analytics.daily_metrics
+ 2. 31_build_daily_trends.py — Build analytics.daily_trends
+ 3. 41_build_historical_daily_metrics.py — Build analytics.historical_daily_metrics
+ 4. 40_build_weekly_metrics.py — Build analytics.weekly_metrics
+ 5. 50_generate_weekly_report.py — Generate weekly report outputs
+ 6. 51_generate_daily_status.py — Generate daily status outputs
+ 7. 43_identify_fasting_blocks.py — Identify fasting blocks
+ 8. 44_filtered_fasting_blocks.py — Filter fasting blocks
+ 9. 45_block_bodycomp_analysis.py — Analyze fasting block body composition
+10. 46_block_bodycomp_quality.py — Analyze fasting block body composition quality
+11. 47_fat_loss_efficiency.py — Calculate fasting block fat loss efficiency
+12. 48_estimate_tdee_blocks.py — Estimate TDEE from fasting blocks
+13. 52_generate_intervention_insights.py — Generate intervention insights summary
+SUCCESS: 30_build_daily_metrics.py | 1.7s | log=20260320_110209_30_build_daily_metrics.log
+SUCCESS: 31_build_daily_trends.py | 1.1s | log=20260320_110209_31_build_daily_trends.log
+SUCCESS: 41_build_historical_daily_metrics.py | 1.1s | log=20260320_110209_41_build_historical_daily_metrics.log
+SUCCESS: 40_build_weekly_metrics.py | 1.1s | log=20260320_110209_40_build_weekly_metrics.log
+SUCCESS: 50_generate_weekly_report.py | 3.2s | log=20260320_110209_50_generate_weekly_report.log
+SUCCESS: 51_generate_daily_status.py | 1.2s | log=20260320_110209_51_generate_daily_status.log
+SUCCESS: 43_identify_fasting_blocks.py | 1.0s | log=20260320_110209_43_identify_fasting_blocks.log
+SUCCESS: 44_filtered_fasting_blocks.py | 0.8s | log=20260320_110209_44_filtered_fasting_blocks.log
+SUCCESS: 45_block_bodycomp_analysis.py | 0.9s | log=20260320_110209_45_block_bodycomp_analysis.log
+SUCCESS: 46_block_bodycomp_quality.py | 1.5s | log=20260320_110209_46_block_bodycomp_quality.log
+SUCCESS: 47_fat_loss_efficiency.py | 1.2s | log=20260320_110209_47_fat_loss_efficiency.log
+SUCCESS: 48_estimate_tdee_blocks.py | 1.2s | log=20260320_110209_48_estimate_tdee_blocks.log
+SUCCESS: 52_generate_intervention_insights.py | 0.9s | log=20260320_110209_52_generate_intervention_insights.log
+
+finished_at: 2026-03-20 11:02:26
+total_elapsed_seconds: 17.10
+result: SUCCESS

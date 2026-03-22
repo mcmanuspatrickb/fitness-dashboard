@@ -1,0 +1,11 @@
+timestamp,deep sleep stats - milli breaths per minute,deep sleep stats - standard deviation milli breaths per minute,deep sleep stats - signal to noise,light sleep stats - milli breaths per minute,light sleep stats - standard deviation milli breaths per minute,light sleep stats - signal to noise,rem sleep stats - milli breaths per minute,rem sleep stats - standard deviation milli breaths per minute,rem sleep stats - signal to noise,full sleep stats - milli breaths per minute,full sleep stats - standard deviation milli breaths per minute,full sleep stats - signal to noise,data source
+2025-02-01T08:34:00Z,-1.0,0.0,1.623,29.6,0.3,3.883,-1.0,0.0,1.592,29.6,0.3,3.883,Fitbit App
+2025-02-02T09:46:30Z,18.6,1.2,7.039,18.0,1.6,8.435,12.2,0.4,3.155,18.6,1.2,7.039,Fitbit App
+2025-02-03T09:17:30Z,18.8,1.1,4.717,18.8,1.7,11.016,-1.0,0.0,1.672,18.8,1.1,4.717,Fitbit App
+2025-02-04T20:27:00Z,-1.0,0.0,1.26,-1.0,0.0,2.11,-1.0,0.0,2.213,0.0,0.0,1.26,Fitbit App
+2025-02-05T10:10:00Z,-1.0,0.0,1.588,-1.0,0.0,2.368,0.4,0.3,2.514,0.0,0.0,1.588,Fitbit App
+2025-02-05T23:48:30Z,-1.0,0.0,1.933,21.0,1.3,4.168,21.8,0.8,3.03,21.0,1.3,4.168,Fitbit App
+2025-02-10T08:44:30Z,-1.0,0.0,1.869,-1.0,0.0,1.738,11.4,0.5,2.61,0.0,0.0,1.869,Fitbit App
+2025-02-11T05:38:00Z,9.2,0.5,2.79,-1.0,0.0,1.434,-1.0,0.0,1.298,9.2,0.5,2.79,Fitbit App
+2025-02-12T08:57:30Z,22.2,0.6,3.71,23.0,1.5,8.252,-1.0,0.0,1.733,23.0,1.5,8.252,Fitbit App
+2025-02-12T17:46:30Z,-1.0,0.0,1.81,-1.0,0.0,1.347,-1.0,0.0,0.0,0.0,0.0,1.81,Fitbit App

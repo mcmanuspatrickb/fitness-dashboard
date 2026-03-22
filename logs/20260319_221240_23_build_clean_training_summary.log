@@ -1,0 +1,24 @@
+Built clean.training_summary with 10 rows.
+        date  workout_count  total_volume
+0 2026-03-12              1       16284.0
+1 2026-03-09              1       10781.0
+2 2026-03-05              1       14688.0
+3 2026-03-02              1        9371.0
+4 2026-02-27              1        1490.0
+5 2026-02-24              1        2897.5
+6 2026-02-19              1       12886.0
+7 2026-02-16              1       14075.5
+8 2026-02-13              1       15210.5
+9 2026-02-09              1       14030.0
+script: 23_build_clean_training_summary.py
+description: Build clean training summary
+started_at: 2026-03-19 22:12:49
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+project_root: C:\Users\mcman\fitness_dashboard
+================================================================================
+
+
+================================================================================
+finished_at: 2026-03-19 22:12:50
+elapsed_seconds: 0.98
+return_code: 0

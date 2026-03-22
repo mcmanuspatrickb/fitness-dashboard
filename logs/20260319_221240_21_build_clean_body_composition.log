@@ -1,0 +1,26 @@
+Built clean.body_composition with 1252 rows.
+        date  weight_kg  ...  visceral_fat  bone_mass_kg
+0 2026-03-13    118.448  ...           5.8          4.02
+1 2026-03-12    118.725  ...           5.8          4.01
+2 2026-03-11    119.442  ...           5.9          4.01
+3 2026-03-10    119.568  ...           5.9          4.02
+4 2026-03-09    119.656  ...           5.9          4.03
+5 2026-03-08    120.122  ...           5.9          4.05
+6 2026-03-07    120.349  ...           5.9          4.04
+7 2026-03-06    120.160  ...           6.0          4.04
+8 2026-03-05    121.293  ...           6.0          4.07
+9 2026-03-04    121.205  ...           6.0          4.06
+
+[10 rows x 10 columns]
+script: 21_build_clean_body_composition.py
+description: Build clean body composition
+started_at: 2026-03-19 22:12:47
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+project_root: C:\Users\mcman\fitness_dashboard
+================================================================================
+
+
+================================================================================
+finished_at: 2026-03-19 22:12:48
+elapsed_seconds: 1.09
+return_code: 0

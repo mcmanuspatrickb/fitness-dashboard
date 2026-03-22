@@ -1,0 +1,16 @@
+Saved body composition analysis to: reports\fasting_bodycomp_analysis.csv
+Empty DataFrame
+Columns: [fasting_state, start_date, end_date, duration_days, weight_change, fat_change, lean_change, fat_percent, lean_percent]
+Index: []
+script: 45_block_bodycomp_analysis.py
+description: Analyze fasting block body composition
+started_at: 2026-03-19 22:36:55
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+project_root: C:\Users\mcman\fitness_dashboard
+================================================================================
+
+
+================================================================================
+finished_at: 2026-03-19 22:36:56
+elapsed_seconds: 0.76
+return_code: 0

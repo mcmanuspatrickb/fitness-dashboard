@@ -1,0 +1,28 @@
+date,workout_id,target_lift,exercise_title,weight_kg,reps,estimated_1rm,set_index,set_type,week_start
+2026-02-19,43668c4b-a573-4303-8a10-0eefce782b68,bench_press,Bench Press (Dumbbell),37.5,5,43.75,0,normal,2026-02-16
+2026-02-19,43668c4b-a573-4303-8a10-0eefce782b68,deadlift,Barbell Deadlift,110.0,4,124.66666666666666,1,normal,2026-02-16
+2026-02-19,43668c4b-a573-4303-8a10-0eefce782b68,overhead_press,Dumbbell Seated Shoulder Press,32.5,5,37.91666666666667,1,normal,2026-02-16
+2026-02-19,43668c4b-a573-4303-8a10-0eefce782b68,pull_up,Cable Lat Pulldown (Wide Grip),84.0,5,98.0,0,normal,2026-02-16
+2026-02-19,43668c4b-a573-4303-8a10-0eefce782b68,row,Cable Seated Row,84.0,5,98.0,0,normal,2026-02-16
+2026-02-19,43668c4b-a573-4303-8a10-0eefce782b68,squat,Barbell Squat,110.0,4,124.66666666666666,1,normal,2026-02-16
+2026-02-24,ba22d954-c54a-4f91-a5cd-9ce7a253436b,bench_press,Bench Press (Dumbbell),42.5,3,46.75000000000001,4,normal,2026-02-23
+2026-02-24,ba22d954-c54a-4f91-a5cd-9ce7a253436b,squat,Barbell Squat,140.0,3,154.0,4,normal,2026-02-23
+2026-02-27,6e5d8472-5151-4cb6-a3fa-eb4aeeefa06e,deadlift,Barbell Deadlift,150.0,1,155.00000000000003,3,normal,2026-02-23
+2026-03-02,2b1ccdac-7dec-45f8-9a38-65ab81914e57,bench_press,Bench Press (Dumbbell),30.0,8,38.0,1,normal,2026-03-02
+2026-03-02,2b1ccdac-7dec-45f8-9a38-65ab81914e57,overhead_press,Dumbbell Seated Shoulder Press,20.0,12,28.0,0,normal,2026-03-02
+2026-03-02,2b1ccdac-7dec-45f8-9a38-65ab81914e57,squat,Barbell Squat,90.0,8,114.0,3,normal,2026-03-02
+2026-03-05,eabbde41-773e-424f-9f5f-dfb56f1862c9,deadlift,Barbell Deadlift,92.5,8,117.16666666666666,3,normal,2026-03-02
+2026-03-05,eabbde41-773e-424f-9f5f-dfb56f1862c9,pull_up,Cable Lat Pulldown (Wide Grip),64.0,12,89.6,0,normal,2026-03-02
+2026-03-05,eabbde41-773e-424f-9f5f-dfb56f1862c9,row,Cable Seated Row,64.0,12,89.6,0,normal,2026-03-02
+2026-03-09,51176569-a22b-418c-b6bb-1d6e728b130f,bench_press,Bench Press (Dumbbell),30.0,8,38.0,2,normal,2026-03-09
+2026-03-09,51176569-a22b-418c-b6bb-1d6e728b130f,overhead_press,Dumbbell Seated Shoulder Press,22.5,10,30.0,0,normal,2026-03-09
+2026-03-09,51176569-a22b-418c-b6bb-1d6e728b130f,squat,Barbell Squat,100.0,8,126.66666666666666,3,normal,2026-03-09
+2026-03-12,f2e35773-a60d-4853-81cf-7cae631ccbaf,deadlift,Barbell Deadlift,102.5,8,129.83333333333331,3,normal,2026-03-09
+2026-03-12,f2e35773-a60d-4853-81cf-7cae631ccbaf,pull_up,Cable Lat Pulldown (Wide Grip),64.0,10,85.33333333333333,0,normal,2026-03-09
+2026-03-12,f2e35773-a60d-4853-81cf-7cae631ccbaf,row,Cable Seated Row,64.0,12,89.6,0,normal,2026-03-09
+2026-03-16,6c9ae5d5-7d76-48c2-9e3b-b01584b599b4,bench_press,Bench Press (Barbell),70.0,6,84.0,3,normal,2026-03-16
+2026-03-16,6c9ae5d5-7d76-48c2-9e3b-b01584b599b4,overhead_press,Seated Overhead Press (Dumbbell),22.5,10,30.0,0,normal,2026-03-16
+2026-03-16,6c9ae5d5-7d76-48c2-9e3b-b01584b599b4,squat,Squat (Barbell),110.0,6,132.0,3,normal,2026-03-16
+2026-03-19,d92e268c-83b9-45f4-89d4-0d81c86c3b57,deadlift,Deadlift (Barbell),110.0,6,132.0,3,normal,2026-03-16
+2026-03-19,d92e268c-83b9-45f4-89d4-0d81c86c3b57,pull_up,Lat Pulldown (Cable),70.0,8,88.66666666666666,0,normal,2026-03-16
+2026-03-19,d92e268c-83b9-45f4-89d4-0d81c86c3b57,row,Seated Cable Row - Bar Grip,64.0,12,89.6,0,normal,2026-03-16

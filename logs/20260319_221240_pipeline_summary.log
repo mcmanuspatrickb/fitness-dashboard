@@ -1,0 +1,32 @@
+FITNESS DASHBOARD PIPELINE RUN
+================================================================================
+run_id: 20260319_221240
+started_at: 2026-03-19 22:12:40
+project_root: C:\Users\mcman\fitness_dashboard
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+
+planned_steps:
+ 1. 10_ingest_interventions.py — Ingest interventions from Google Sheets
+ 2. 20_build_clean_interventions.py — Build clean interventions table
+ 3. 21_build_clean_body_composition.py — Build clean body composition
+ 4. 22_build_clean_fitbit_daily.py — Build clean Fitbit daily
+ 5. 23_build_clean_training_summary.py — Build clean training summary
+ 6. 24_build_clean_nutrition_daily.py — Build clean nutrition daily
+ 7. 30_build_daily_metrics.py — Build analytics.daily_metrics
+ 8. 41_build_historical_daily_metrics.py — Build analytics.historical_daily_metrics
+ 9. 40_build_weekly_metrics.py — Build analytics.weekly_metrics
+10. 50_generate_weekly_report.py — Generate weekly report outputs
+SUCCESS: 10_ingest_interventions.py | 5.8s | log=20260319_221240_10_ingest_interventions.log
+SUCCESS: 20_build_clean_interventions.py | 1.0s | log=20260319_221240_20_build_clean_interventions.log
+SUCCESS: 21_build_clean_body_composition.py | 1.1s | log=20260319_221240_21_build_clean_body_composition.log
+SUCCESS: 22_build_clean_fitbit_daily.py | 1.2s | log=20260319_221240_22_build_clean_fitbit_daily.log
+SUCCESS: 23_build_clean_training_summary.py | 1.0s | log=20260319_221240_23_build_clean_training_summary.log
+SUCCESS: 24_build_clean_nutrition_daily.py | 1.0s | log=20260319_221240_24_build_clean_nutrition_daily.log
+SUCCESS: 30_build_daily_metrics.py | 1.1s | log=20260319_221240_30_build_daily_metrics.log
+SUCCESS: 41_build_historical_daily_metrics.py | 1.1s | log=20260319_221240_41_build_historical_daily_metrics.log
+SUCCESS: 40_build_weekly_metrics.py | 1.0s | log=20260319_221240_40_build_weekly_metrics.log
+SUCCESS: 50_generate_weekly_report.py | 1.7s | log=20260319_221240_50_generate_weekly_report.log
+
+finished_at: 2026-03-19 22:12:56
+total_elapsed_seconds: 15.99
+result: SUCCESS

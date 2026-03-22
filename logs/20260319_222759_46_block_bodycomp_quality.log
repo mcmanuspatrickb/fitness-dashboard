@@ -1,0 +1,17 @@
+Saved improved body composition analysis to: reports\fasting_bodycomp_quality.csv
+  fasting_state  start_date  ... fat_loss_percent  lean_loss_percent
+0        normal  2013-07-10  ...            100.0                0.0
+
+[1 rows x 9 columns]
+script: 46_block_bodycomp_quality.py
+description: Analyze fasting block body composition quality
+started_at: 2026-03-19 22:28:02
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+project_root: C:\Users\mcman\fitness_dashboard
+================================================================================
+
+
+================================================================================
+finished_at: 2026-03-19 22:28:03
+elapsed_seconds: 0.77
+return_code: 0

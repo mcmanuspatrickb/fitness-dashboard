@@ -1,0 +1,3 @@
+date,readiness_score_value,readiness_state,activity_subcomponent,sleep_subcomponent,hrv_subcomponent,activity_state,sleep_state,hrv_state
+2023-12-02,84.0,HIGH,84.0,64.0,43.0,LOW,MEDIUM,MEDIUM
+2023-12-01,74.0,HIGH,74.0,87.0,56.0,LOW,HIGH,MEDIUM

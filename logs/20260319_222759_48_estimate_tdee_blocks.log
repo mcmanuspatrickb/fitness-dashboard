@@ -1,0 +1,17 @@
+Saved historical TDEE estimates: reports\historical_tdee_estimates.csv
+  fasting_state  start_date  ... lean_loss_kg  estimated_tdee
+0        normal  2013-07-10  ...            0      1475.91764
+
+[1 rows x 8 columns]
+script: 48_estimate_tdee_blocks.py
+description: Estimate TDEE from fasting blocks
+started_at: 2026-03-19 22:28:04
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+project_root: C:\Users\mcman\fitness_dashboard
+================================================================================
+
+
+================================================================================
+finished_at: 2026-03-19 22:28:05
+elapsed_seconds: 0.79
+return_code: 0

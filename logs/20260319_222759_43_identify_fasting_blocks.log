@@ -1,0 +1,17 @@
+Saved fasting block analysis to: reports\fasting_blocks_analysis.csv
+  fasting_state start_date   end_date  ...  avg_calories  avg_protein    avg_steps
+0        normal 2013-07-10 2026-03-19  ...   1460.265499          NaN  7324.354839
+
+[1 rows x 10 columns]
+script: 43_identify_fasting_blocks.py
+description: Identify fasting blocks
+started_at: 2026-03-19 22:27:59
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+project_root: C:\Users\mcman\fitness_dashboard
+================================================================================
+
+
+================================================================================
+finished_at: 2026-03-19 22:28:00
+elapsed_seconds: 0.88
+return_code: 0

@@ -1,0 +1,55 @@
+Saved weekly metrics CSV to: reports\weekly_metrics_latest.csv
+Saved: reports\chart_weight_trend.png
+Saved: reports\chart_steps_trend.png
+Saved: reports\chart_resting_hr_trend.png
+
+Latest Weekly Summary
+---------------------
+Latest week is partial / incomplete.
+current_week_start: 2026-03-16
+
+Latest Complete Week
+--------------------
+week_start: 2026-03-09
+avg_weight: 119.17
+avg_fat_mass: 37.90
+avg_lean_mass: 81.27
+avg_steps: 6823
+avg_sleep: 7.30
+avg_resting_hr: 72.67
+avg_hrv: 15.29
+weight_change: -1.21
+fat_mass_change: -1.03
+lean_mass_change: -0.18
+fasting_state_mode: normal
+mounjaro_mg_mode: 5.00
+avg_hunger_score: 1.29
+
+Current Partial Week
+--------------------
+week_start: 2026-03-16
+avg_weight: N/A
+avg_fat_mass: N/A
+avg_lean_mass: N/A
+avg_steps: N/A
+avg_sleep: N/A
+avg_resting_hr: N/A
+avg_hrv: N/A
+weight_change: N/A
+fat_mass_change: N/A
+lean_mass_change: N/A
+fasting_state_mode: normal
+mounjaro_mg_mode: 5.00
+avg_hunger_score: 2.75
+script: 50_generate_weekly_report.py
+description: Generate weekly report outputs
+started_at: 2026-03-20 11:02:14
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+project_root: C:\Users\mcman\fitness_dashboard
+================================================================================
+
+
+================================================================================
+finished_at: 2026-03-20 11:02:17
+elapsed_seconds: 3.25
+return_code: 0

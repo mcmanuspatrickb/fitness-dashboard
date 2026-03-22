@@ -1,0 +1,83 @@
+Pre-Fast Prep Analysis
+======================
+
+Block Prep Summary
+------------------
+block 1: 2020-03-02 00:00:00→2020-03-04 00:00:00 | days=3
+  prep3: calories=1060.33, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  prep5: calories=857.80, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  prep7: calories=914.29, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  fast outcome: weight=-0.34, fat=-0.80, lean=0.46, fat_share=2.36
+  rebound: 7d weight=0.57, 7d fat=1.40, 14d weight=-0.54, 14d fat=1.68
+
+block 2: 2020-03-09 00:00:00→2020-03-11 00:00:00 | days=3
+  prep3: calories=3312.23, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  prep5: calories=2696.82, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  prep7: calories=1929.16, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  fast outcome: weight=-0.36, fat=3.59, lean=-3.95, fat_share=9.89
+  rebound: 7d weight=-1.11, 7d fat=0.28, 14d weight=-1.73, 14d fat=-2.39
+
+block 3: 2020-03-17 00:00:00→2020-03-18 00:00:00 | days=2
+  prep3: calories=2297.53, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  prep5: calories=1904.32, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  prep7: calories=1363.09, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  fast outcome: weight=-0.33, fat=1.09, lean=-1.41, fat_share=3.34
+  rebound: 7d weight=-0.62, 7d fat=-2.67, 14d weight=-0.76, 14d fat=-1.84
+
+block 4: 2020-03-29 00:00:00→2020-03-29 00:00:00 | days=1
+  prep3: calories=578.53, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  prep5: calories=797.12, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  prep7: calories=944.13, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  fast outcome: weight=0.00, fat=0.00, lean=0.00, fat_share=N/A
+  rebound: 7d weight=N/A, 7d fat=N/A, 14d weight=0.16, 14d fat=-0.19
+
+block 5: 2020-05-06 00:00:00→2020-05-07 00:00:00 | days=2
+  prep3: calories=1611.53, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  prep5: calories=1520.08, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  prep7: calories=1291.26, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  fast outcome: weight=-0.88, fat=0.30, lean=-1.18, fat_share=0.34
+  rebound: 7d weight=-0.33, 7d fat=-1.55, 14d weight=-0.70, 14d fat=-0.34
+
+block 6: 2020-06-19 00:00:00→2020-07-02 00:00:00 | days=14
+  prep3: calories=1346.27, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  prep5: calories=898.16, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  prep7: calories=939.64, protein=N/A, steps=N/A, sleep=N/A, rhr=N/A, hrv=N/A
+  fast outcome: weight=-8.92, fat=-4.29, lean=-4.63, fat_share=0.48
+  rebound: 7d weight=1.52, 7d fat=-1.02, 14d weight=1.42, 14d fat=-0.88
+
+block 7: 2020-09-05 00:00:00→2020-09-17 00:00:00 | days=13
+  prep3: calories=1490.00, protein=N/A, steps=93.00, sleep=N/A, rhr=N/A, hrv=N/A
+  prep5: calories=1514.38, protein=N/A, steps=93.00, sleep=N/A, rhr=N/A, hrv=N/A
+  prep7: calories=1636.10, protein=N/A, steps=93.00, sleep=N/A, rhr=N/A, hrv=N/A
+  fast outcome: weight=-7.45, fat=-5.24, lean=-2.22, fat_share=0.70
+  rebound: 7d weight=1.88, 7d fat=0.04, 14d weight=2.02, 14d fat=-2.34
+
+block 8: 2020-10-31 00:00:00→2020-11-02 00:00:00 | days=3
+  prep3: calories=1586.57, protein=N/A, steps=8980.67, sleep=8.88, rhr=77.00, hrv=N/A
+  prep5: calories=1561.82, protein=N/A, steps=9390.50, sleep=8.88, rhr=77.00, hrv=N/A
+  prep7: calories=1937.67, protein=N/A, steps=9870.50, sleep=5.16, rhr=77.00, hrv=N/A
+  fast outcome: weight=-1.55, fat=0.13, lean=-1.68, fat_share=0.08
+  rebound: 7d weight=N/A, 7d fat=N/A, 14d weight=-0.68, 14d fat=-2.66
+
+block 9: 2021-01-25 00:00:00→2021-02-07 00:00:00 | days=14
+  prep3: calories=2084.30, protein=N/A, steps=11375.33, sleep=7.89, rhr=70.67, hrv=N/A
+  prep5: calories=2033.90, protein=N/A, steps=11284.20, sleep=7.50, rhr=70.00, hrv=N/A
+  prep7: calories=1944.84, protein=N/A, steps=11096.43, sleep=7.37, rhr=70.86, hrv=N/A
+  fast outcome: weight=-7.33, fat=-4.98, lean=-2.35, fat_share=0.68
+  rebound: 7d weight=3.30, 7d fat=-0.73, 14d weight=N/A, 14d fat=N/A
+
+block 10: 2021-04-19 00:00:00→2021-05-03 00:00:00 | days=15
+  prep3: calories=1256.80, protein=N/A, steps=8713.67, sleep=5.68, rhr=73.67, hrv=14.90
+  prep5: calories=1382.30, protein=N/A, steps=9972.80, sleep=5.83, rhr=73.20, hrv=15.54
+  prep7: calories=1363.16, protein=N/A, steps=9170.00, sleep=6.06, rhr=72.71, hrv=15.17
+  fast outcome: weight=-6.20, fat=-5.59, lean=-0.61, fat_share=0.90
+  rebound: 7d weight=2.82, 7d fat=1.11, 14d weight=2.89, 14d fat=2.59
+
+High-Level Notes
+----------------
+Look for blocks where:
+- prep protein is higher
+- prep calories are moderate, not binge-like
+- prep sleep is stronger
+- fast lean loss is smaller
+- rebound fat gain is smaller

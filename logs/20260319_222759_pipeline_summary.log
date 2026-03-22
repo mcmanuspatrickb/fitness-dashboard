@@ -1,0 +1,24 @@
+FITNESS DASHBOARD PIPELINE RUN
+================================================================================
+run_id: 20260319_222759
+started_at: 2026-03-19 22:27:59
+project_root: C:\Users\mcman\fitness_dashboard
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+
+planned_steps:
+ 1. 43_identify_fasting_blocks.py — Identify fasting blocks
+ 2. 44_filtered_fasting_blocks.py — Filter fasting blocks
+ 3. 45_block_bodycomp_analysis.py — Analyze fasting block body composition
+ 4. 46_block_bodycomp_quality.py — Analyze fasting block body composition quality
+ 5. 47_fat_loss_efficiency.py — Calculate fasting block fat loss efficiency
+ 6. 48_estimate_tdee_blocks.py — Estimate TDEE from fasting blocks
+SUCCESS: 43_identify_fasting_blocks.py | 0.9s | log=20260319_222759_43_identify_fasting_blocks.log
+SUCCESS: 44_filtered_fasting_blocks.py | 0.8s | log=20260319_222759_44_filtered_fasting_blocks.log
+SUCCESS: 45_block_bodycomp_analysis.py | 1.3s | log=20260319_222759_45_block_bodycomp_analysis.log
+SUCCESS: 46_block_bodycomp_quality.py | 0.8s | log=20260319_222759_46_block_bodycomp_quality.log
+SUCCESS: 47_fat_loss_efficiency.py | 0.8s | log=20260319_222759_47_fat_loss_efficiency.log
+SUCCESS: 48_estimate_tdee_blocks.py | 0.8s | log=20260319_222759_48_estimate_tdee_blocks.log
+
+finished_at: 2026-03-19 22:28:05
+total_elapsed_seconds: 5.49
+result: SUCCESS

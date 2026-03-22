@@ -1,0 +1,36 @@
+Built analytics.historical_daily_metrics with 2382 rows.
+         date  weight_kg  fat_mass_kg  ...  hunger_score  notes   nutrition_source
+0  2026-03-19        NaN          NaN  ...          <NA>   None  cronometer_export
+1  2026-03-18        NaN          NaN  ...          <NA>   None  cronometer_export
+2  2026-03-17        NaN          NaN  ...          <NA>   None  cronometer_export
+3  2026-03-16        NaN          NaN  ...          <NA>   None  cronometer_export
+4  2026-03-15        NaN          NaN  ...          <NA>   None  cronometer_export
+5  2026-03-14        NaN          NaN  ...          <NA>   None  cronometer_export
+6  2026-03-13    118.448        37.19  ...          <NA>   None  cronometer_export
+7  2026-03-12    118.725        37.57  ...          <NA>   None  cronometer_export
+8  2026-03-11    119.442        38.22  ...          <NA>   None                NaN
+9  2026-03-10    119.568        38.31  ...          <NA>   None                NaN
+10 2026-03-09    119.656        38.22  ...          <NA>   None                NaN
+11 2026-03-08    120.122        38.30  ...          <NA>   None                NaN
+12 2026-03-07    120.349        38.61  ...          <NA>   None                NaN
+13 2026-03-06    120.160        38.50  ...          <NA>   None                NaN
+14 2026-03-05    121.293        39.02  ...          <NA>   None                NaN
+15 2026-03-04    121.205        39.00  ...          <NA>   None                NaN
+16 2026-03-03    120.941        38.97  ...          <NA>   None                NaN
+17 2026-03-02    120.840        38.92  ...          <NA>   None                NaN
+18 2026-03-01        NaN          NaN  ...          <NA>   None                NaN
+19 2026-02-28    122.325        40.03  ...          <NA>   None                NaN
+
+[20 rows x 28 columns]
+script: 41_build_historical_daily_metrics.py
+description: Build analytics.historical_daily_metrics
+started_at: 2026-03-19 22:12:53
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+project_root: C:\Users\mcman\fitness_dashboard
+================================================================================
+
+
+================================================================================
+finished_at: 2026-03-19 22:12:54
+elapsed_seconds: 1.13
+return_code: 0

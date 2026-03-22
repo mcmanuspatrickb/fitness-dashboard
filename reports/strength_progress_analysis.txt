@@ -1,0 +1,30 @@
+Strength Progress Analysis
+==========================
+
+Latest Weekly Snapshot
+----------------------
+bench_press: best_set=70.0 x 6 | e1RM=84.0 | trend=up | change_vs_prev=+46.0
+deadlift: best_set=110.0 x 6 | e1RM=132.0 | trend=flat | change_vs_prev=+2.2
+overhead_press: best_set=22.5 x 10 | e1RM=30.0 | trend=flat | change_vs_prev=0.0
+pull_up: best_set=70.0 x 8 | e1RM=88.7 | trend=up | change_vs_prev=+3.3
+row: best_set=64.0 x 12 | e1RM=89.6 | trend=flat | change_vs_prev=0.0
+squat: best_set=110.0 x 6 | e1RM=132.0 | trend=up | change_vs_prev=+5.3
+
+All Lift Summaries
+------------------
+bench_press: first=43.8 (2026-02-16) | latest=84.0 (2026-03-16) | overall_change=+40.2
+deadlift: first=124.7 (2026-02-16) | latest=132.0 (2026-03-16) | overall_change=+7.3
+overhead_press: first=37.9 (2026-02-16) | latest=30.0 (2026-03-16) | overall_change=-7.9
+pull_up: first=98.0 (2026-02-16) | latest=88.7 (2026-03-16) | overall_change=-9.3
+row: first=98.0 (2026-02-16) | latest=89.6 (2026-03-16) | overall_change=-8.4
+squat: first=124.7 (2026-02-16) | latest=132.0 (2026-03-16) | overall_change=+7.3
+
+Coaching Notes
+-------------
+With 2 strength sessions per week, the goal is not maximum volume. It is high-quality progression.
+Focus on:
+- one strong top set per target movement or close variation
+- enough calories to support training quality
+- high protein consistency
+- low junk fatigue outside the gym
+- steady weekly progression, not dramatic jumps

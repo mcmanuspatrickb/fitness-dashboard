@@ -1,0 +1,62 @@
+Strength-Adjusted Coaching
+==========================
+
+Headline
+--------
+ADJUST, DON'T PANIC
+Progress is happening, but you are likely a bit under-recovered or under-fueled for your strength goal.
+
+Body Composition
+----------------
+weight change vs prior 7d: -0.98
+fat mass change vs prior 7d: -0.60
+lean mass change vs prior 7d: -0.38
+
+Recovery
+--------
+sleep: 7.70 (delta 0.50)
+RHR: 76.50 (delta 4.50)
+HRV: N/A (delta N/A)
+
+Nutrition
+---------
+calories: 1484.49
+protein: 117.40
+carbs: 91.87
+fat: 69.55
+
+Training
+--------
+workouts (7d): 2.00
+avg training volume: 14715.50
+steps: 7920.88
+
+Strength Snapshot
+-----------------
+squat: e1RM=132.00, trend=up, change=5.33
+bench_press: e1RM=84.00, trend=up, change=46.00
+deadlift: e1RM=132.00, trend=flat, change=2.17
+row: e1RM=89.60, trend=flat, change=0.00
+pull_up: e1RM=88.67, trend=up, change=3.33
+overhead_press: e1RM=30.00, trend=flat, change=0.00
+
+What This Means
+---------------
+- Fat mass is moving in the right direction.
+- Lean mass is slipping enough to matter for a strength-focused phase.
+- Resting HR is elevated versus the prior week, suggesting recovery stress.
+- Sleep is supportive.
+- Calories may be too low for a strength-focused recomp phase.
+- Training frequency is workable for your schedule, but session quality matters a lot.
+- Multiple lifts are trending up, so the program is still working.
+
+Next Week Recommendations
+-------------------------
+- Increase calories slightly or reduce total fatigue so lean mass stabilizes.
+- Reduce overall stress load this week and avoid digging the deficit deeper.
+- Consider adding roughly 150–300 kcal/day, especially around training.
+- Make both lifting sessions count with high-quality top sets.
+
+Coach's View
+------------
+With only 2 strength sessions per week, your goal is not to do more. It is to recover well enough that both sessions are productive and your main lifts trend upward while fat mass trends down.

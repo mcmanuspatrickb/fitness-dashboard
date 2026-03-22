@@ -1,0 +1,17 @@
+Filtered blocks saved to: reports\fasting_blocks_filtered.csv
+  fasting_state  start_date    end_date  ...  avg_protein    avg_steps  min_required
+0        normal  2013-07-10  2026-03-19  ...          NaN  7324.354839            14
+
+[1 rows x 11 columns]
+script: 44_filtered_fasting_blocks.py
+description: Filter fasting blocks
+started_at: 2026-03-19 22:28:00
+python: C:\Users\mcman\fitness_dashboard\.venv\Scripts\python.exe
+project_root: C:\Users\mcman\fitness_dashboard
+================================================================================
+
+
+================================================================================
+finished_at: 2026-03-19 22:28:01
+elapsed_seconds: 0.81
+return_code: 0

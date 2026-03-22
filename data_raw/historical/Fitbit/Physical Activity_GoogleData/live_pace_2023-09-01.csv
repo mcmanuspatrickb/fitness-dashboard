@@ -1,0 +1,6 @@
+timestamp,steps,distance millimeters,altitude gain millimeters,data source
+2023-09-01T00:20:27Z,0,0,0,Charge 5
+2023-09-01T00:20:28Z,3,0,0,Charge 5
+2023-09-01T00:20:29Z,2,0,0,Charge 5
+2023-09-01T00:20:30Z,1,160,0,Charge 5
+2023-09-01T00:20:31Z,0,200,0,Charge 5
