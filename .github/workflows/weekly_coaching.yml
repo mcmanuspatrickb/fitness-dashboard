@@ -45,15 +45,6 @@ jobs:
           path: reports/
           if-no-files-found: warn
 
-      - name: Zip reports
-        if: always()
-        run: |
-          if [ -d reports ]; then
-            zip -r reports.zip reports
-          else
-            echo "No reports directory found"
-          fi
-
       - name: Email reports
         if: always()
         env:
@@ -64,38 +55,96 @@ jobs:
           python <<'EOF'
           import os
           import smtplib
+          import mimetypes
           from email.message import EmailMessage
           from pathlib import Path
+          from html import escape
 
           email_user = os.environ["EMAIL_USER"]
           email_password = os.environ["EMAIL_PASSWORD"]
           email_to = os.environ["EMAIL_TO"]
 
-          zip_path = Path("reports.zip")
           reports_dir = Path("reports")
+          attachments = []
+
+          if reports_dir.exists():
+              attachments = sorted([p for p in reports_dir.rglob("*") if p.is_file()])
 
           msg = EmailMessage()
           msg["Subject"] = "Weekly Coaching Report"
           msg["From"] = email_user
           msg["To"] = email_to
 
-          if zip_path.exists():
-              msg.set_content("Your weekly coaching report is attached as reports.zip.")
-              with open(zip_path, "rb") as f:
-                  msg.add_attachment(
-                      f.read(),
-                      maintype="application",
-                      subtype="zip",
-                      filename="reports.zip"
-                  )
-          elif reports_dir.exists():
-              msg.set_content("The workflow ran, but reports.zip was not created. Check the GitHub Actions artifacts.")
+          if attachments:
+              file_list_text = "\n".join(f"- {p.name}" for p in attachments)
+              file_list_html = "".join(f"<li>{escape(p.name)}</li>" for p in attachments)
+
+              text_body = f"""Your weekly coaching report is ready.
+
+Attached files:
+{file_list_text}
+
+This email was sent automatically by your GitHub Actions workflow.
+"""
+
+              html_body = f"""\
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, sans-serif; line-height: 1.5; color: #222;">
+    <h2 style="margin-bottom: 0.4em;">Weekly Coaching Report</h2>
+    <p>Your weekly coaching report is ready.</p>
+
+    <p><strong>Attached files:</strong></p>
+    <ul>
+      {file_list_html}
+    </ul>
+
+    <p style="margin-top: 1.5em; color: #666; font-size: 0.95em;">
+      This email was sent automatically by your GitHub Actions workflow.
+    </p>
+  </body>
+</html>
+"""
+
+              msg.set_content(text_body)
+              msg.add_alternative(html_body, subtype="html")
+
+              for file_path in attachments:
+                  mime_type, _ = mimetypes.guess_type(file_path.name)
+                  if mime_type:
+                      maintype, subtype = mime_type.split("/", 1)
+                  else:
+                      maintype, subtype = "application", "octet-stream"
+
+                  with open(file_path, "rb") as f:
+                      msg.add_attachment(
+                          f.read(),
+                          maintype=maintype,
+                          subtype=subtype,
+                          filename=file_path.name
+                      )
           else:
-              msg.set_content("The workflow ran, but no reports folder was found. Check the GitHub Actions logs.")
+              text_body = """The workflow ran, but no report files were found in the reports directory.
+
+Please check the GitHub Actions logs and artifacts.
+"""
+              html_body = """\
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, sans-serif; line-height: 1.5; color: #222;">
+    <h2 style="margin-bottom: 0.4em;">Weekly Coaching Report</h2>
+    <p>The workflow ran, but no report files were found in the <code>reports/</code> directory.</p>
+    <p>Please check the GitHub Actions logs and artifacts.</p>
+  </body>
+</html>
+"""
+
+              msg.set_content(text_body)
+              msg.add_alternative(html_body, subtype="html")
 
           with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
               smtp.login(email_user, email_password)
               smtp.send_message(msg)
 
-          print("Email step completed.")
+          print(f"Email sent. Attachments: {len(attachments)}")
           EOF
