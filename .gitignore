@@ -1,29 +1,21 @@
 # Python
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.mypy_cache/
-.ipynb_checkpoints/
-
-# Virtual env
 .venv/
-venv/
+__pycache__/
+*.pyc
 
-# Secrets / local config
+# Env
 .env
-.env.*
 
-# Local databases / data
-db/*.duckdb
-db/*.wal
-db/*.tmp
-
-# Raw / generated data
+# Data
 data_raw/
-reports/
+data_processed/
+*.csv
+*.db
 
-# OS/editor noise
+# Outputs
+reports/
+logs/
+
+# OS
 .DS_Store
 Thumbs.db
-.vscode/
-.idea/
