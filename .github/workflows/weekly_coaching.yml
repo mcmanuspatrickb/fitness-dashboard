@@ -34,7 +34,9 @@ jobs:
           python scripts/100_run_weekly_coaching_stack.py
 
       - name: Upload reports
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: weekly-reports
           path: reports/
+          if-no-files-found: warn
