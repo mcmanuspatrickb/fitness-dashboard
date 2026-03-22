@@ -9,20 +9,25 @@ jobs:
   run-pipeline:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: project
+
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run coaching pipeline
@@ -33,7 +38,7 @@ jobs:
           python scripts/100_run_weekly_coaching_stack.py
 
       - name: Upload reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: weekly-reports
-          path: reports/
+          path: project/reports/
