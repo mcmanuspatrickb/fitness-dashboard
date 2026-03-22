@@ -26,6 +26,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Install Playwright browsers
+        run: |
+          playwright install --with-deps
+
       - name: Run coaching pipeline
         env:
           CRONOMETER_EMAIL: ${{ secrets.CRONOMETER_EMAIL }}
@@ -40,3 +44,58 @@ jobs:
           name: weekly-reports
           path: reports/
           if-no-files-found: warn
+
+      - name: Zip reports
+        if: always()
+        run: |
+          if [ -d reports ]; then
+            zip -r reports.zip reports
+          else
+            echo "No reports directory found"
+          fi
+
+      - name: Email reports
+        if: always()
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: |
+          python <<'EOF'
+          import os
+          import smtplib
+          from email.message import EmailMessage
+          from pathlib import Path
+
+          email_user = os.environ["EMAIL_USER"]
+          email_password = os.environ["EMAIL_PASSWORD"]
+          email_to = os.environ["EMAIL_TO"]
+
+          zip_path = Path("reports.zip")
+          reports_dir = Path("reports")
+
+          msg = EmailMessage()
+          msg["Subject"] = "Weekly Coaching Report"
+          msg["From"] = email_user
+          msg["To"] = email_to
+
+          if zip_path.exists():
+              msg.set_content("Your weekly coaching report is attached as reports.zip.")
+              with open(zip_path, "rb") as f:
+                  msg.add_attachment(
+                      f.read(),
+                      maintype="application",
+                      subtype="zip",
+                      filename="reports.zip"
+                  )
+          elif reports_dir.exists():
+              msg.set_content("The workflow ran, but reports.zip was not created. Check the GitHub Actions artifacts.")
+          else:
+              msg.set_content("The workflow ran, but no reports folder was found. Check the GitHub Actions logs.")
+
+          with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+              smtp.login(email_user, email_password)
+              smtp.send_message(msg)
+
+          print("Email step completed.")
+          EOF
