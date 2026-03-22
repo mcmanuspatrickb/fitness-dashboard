@@ -2,12 +2,15 @@ name: Weekly Coaching Pipeline
 
 on:
   schedule:
-    - cron: "0 6 * * 1"  # Every Monday at 06:00 UTC
-  workflow_dispatch:      # manual run button
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
 
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout repo
@@ -23,6 +26,9 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run coaching pipeline
+        env:
+          CRONOMETER_EMAIL: ${{ secrets.CRONOMETER_EMAIL }}
+          CRONOMETER_PASSWORD: ${{ secrets.CRONOMETER_PASSWORD }}
         run: |
           python scripts/100_run_weekly_coaching_stack.py
 
