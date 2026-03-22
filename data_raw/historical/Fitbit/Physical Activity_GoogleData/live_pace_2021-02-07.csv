@@ -1,8 +1,0 @@
-timestamp,steps,distance millimeters,altitude gain millimeters,data source
-2021-02-07T11:05:00Z,0,0,0,Charge 4
-2021-02-07T11:05:01Z,3,0,0,Charge 4
-2021-02-07T11:05:02Z,0,0,0,Charge 4
-2021-02-07T11:05:03Z,2,0,609,Charge 4
-2021-02-07T11:05:04Z,3,220,-1828,Charge 4
-2021-02-07T11:05:05Z,3,400,2438,Charge 4
-2021-02-07T11:05:06Z,2,590,-914,Charge 4

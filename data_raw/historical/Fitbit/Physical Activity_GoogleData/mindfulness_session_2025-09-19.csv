@@ -1,2 +1,0 @@
-start time,end time,heart_rate_summary_average_bpm,heart_rate_summary_start_bpm,heart_rate_summary_end_bpm,pause_times_start_time,pause_times_end_time,pause_times_start_timestamp,pause_times_end_timestamp,metadata_update_time,metadata_session_name,metadata_type,metadata_description,metadata_media_content_duration_seconds,metadata_active_duration_seconds,metadata_external_id,data source
-2025-09-19T11:50:34Z,2025-09-19T11:53:35Z,0,66,66,,,,,,Quick scan,OTHER,,180,0,da2a5340-954e-11f0-8080-808080808080,Fitbit App

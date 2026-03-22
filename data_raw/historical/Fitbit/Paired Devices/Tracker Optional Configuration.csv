@@ -1,3 +1,0 @@
-tracker_id,enabled_notification_types,on_right_hand,clock_face,enable_inactivity_alerts,last_updated_ia_time,last_reboot_time,payments_enabled,last_successful_wifi_connection_time,last_successful_wifi_connectionipv4addr,last_successful_wifi_connectionipv6addr,last_successful_wifi_connectionssid,live_data_disabled
-2424973825,,false,,,,,false,,,,,
-2756292798,"[INCOMING_CALL, TEXT_MESSAGE, CALENDAR]",false,,true,2025-02-06T10:25:40.000Z,,false,,,,,false

@@ -1,6 +1,0 @@
-fasting_state,row_count,earliest_date,latest_date,avg_fasting_hours,min_fasting_hours,max_fasting_hours
-normal,607,2020-03-05,2026-03-19,0.0,0.0,0.0
-if,131,2019-10-23,2020-03-01,16.0,16.0,16.0
-extended_fast,70,2020-03-02,2021-05-03,281.8285714285714,24.0,360.0
-baseline,49,2013-07-10,2016-03-31,,,
-omad,39,2020-03-16,2021-07-27,23.0,23.0,23.0

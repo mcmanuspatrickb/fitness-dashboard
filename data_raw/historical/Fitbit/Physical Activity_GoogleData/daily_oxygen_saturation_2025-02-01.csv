@@ -1,9 +1,0 @@
-timestamp,average percentage,lower bound percentage,upper bound percentage,baseline percentage,standard deviation percentage,data source
-2025-02-01T00:00:00Z,96.3,92.1,98.6,95.9,1.2,Charge 6
-2025-02-02T00:00:00Z,95.3,91.0,99.8,95.8,1.2,Charge 6
-2025-02-03T00:00:00Z,96.7,94.8,98.3,95.9,1.2,Charge 6
-2025-02-05T00:00:00Z,95.7,93.0,98.0,95.9,1.2,Charge 6
-2025-02-06T00:00:00Z,98.3,96.2,100.0,96.0,1.2,Charge 6
-2025-02-10T00:00:00Z,95.5,93.7,96.5,96.0,1.2,Charge 6
-2025-02-11T00:00:00Z,95.8,94.3,97.1,95.9,1.2,Charge 6
-2025-02-12T00:00:00Z,94.0,93.4,95.1,95.8,1.2,Charge 6

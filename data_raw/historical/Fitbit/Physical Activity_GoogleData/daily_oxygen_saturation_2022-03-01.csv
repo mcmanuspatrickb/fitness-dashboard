@@ -1,6 +1,0 @@
-timestamp,average percentage,lower bound percentage,upper bound percentage,baseline percentage,standard deviation percentage,data source
-2022-03-25T00:00:00Z,96.7,96.6,98.2,95.8,1.0,Charge 4
-2022-03-28T00:00:00Z,93.5,92.3,95.1,95.6,1.1,Charge 4
-2022-03-29T00:00:00Z,93.0,91.8,92.3,95.3,1.4,Charge 4
-2022-03-30T00:00:00Z,92.6,91.3,91.2,95.3,1.4,Charge 4
-2022-03-31T00:00:00Z,95.4,93.4,98.2,95.3,1.4,Charge 4

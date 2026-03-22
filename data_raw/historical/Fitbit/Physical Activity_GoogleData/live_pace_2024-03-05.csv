@@ -1,8 +1,0 @@
-timestamp,steps,distance millimeters,altitude gain millimeters,data source
-2024-03-05T10:12:25Z,0,0,0,Charge 5
-2024-03-05T10:12:26Z,1,0,0,Charge 5
-2024-03-05T10:12:27Z,1,0,0,Charge 5
-2024-03-05T10:12:28Z,4,180,0,Charge 5
-2024-03-05T10:12:29Z,3,360,0,Charge 5
-2024-03-05T10:12:30Z,1,530,0,Charge 5
-2024-03-05T10:12:31Z,2,720,0,Charge 5

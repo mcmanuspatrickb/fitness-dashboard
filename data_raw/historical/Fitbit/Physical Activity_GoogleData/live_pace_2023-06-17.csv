@@ -1,9 +1,0 @@
-timestamp,steps,distance millimeters,altitude gain millimeters,data source
-2023-06-17T17:31:03Z,0,0,0,Charge 5
-2023-06-17T17:31:04Z,2,0,0,Charge 5
-2023-06-17T17:31:05Z,3,80,0,Charge 5
-2023-06-17T17:31:06Z,2,190,0,Charge 5
-2023-06-17T17:31:07Z,2,350,0,Charge 5
-2023-06-17T17:31:08Z,2,510,0,Charge 5
-2023-06-17T17:31:09Z,0,660,0,Charge 5
-2023-06-17T17:31:10Z,0,670,0,Charge 5

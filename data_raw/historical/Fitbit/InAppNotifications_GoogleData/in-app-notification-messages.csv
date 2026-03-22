@@ -1,3 +1,0 @@
-id,title,body,priority,destination,creation_time,expiration_time,left_action_text,right_action_text,entity_id,entity_type
-3017923220455879480,Ready to hit your target today?,"You’ve been at risk of undertraining recently, and your readiness is high. Aiming for 66-90 cardio load today will help you get back on track to improve your cardio fitness.",1000,DESTINATION_TODAY_FOCUS,2026-02-28T09:06:39.007600Z,2026-02-28T22:59:59.999999999Z,,,,ENTITY_TYPE_UNSPECIFIED
-6088163197151427448,,"High readiness. After some lighter intensity days, it’s a good time to push.",1,DESTINATION_MORNING_BRIEF_READINESS,2026-02-28T09:06:39.007600Z,2026-02-28T22:59:59.999999999Z,,,,ENTITY_TYPE_UNSPECIFIED
