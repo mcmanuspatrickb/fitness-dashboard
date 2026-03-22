@@ -9,10 +9,6 @@ jobs:
   run-pipeline:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: project
-
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -41,4 +37,4 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: weekly-reports
-          path: project/reports/
+          path: reports/
