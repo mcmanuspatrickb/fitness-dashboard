@@ -37,6 +37,10 @@ jobs:
         run: |
           python scripts/100_run_weekly_coaching_stack.py
 
+      - name: Build coaching summary
+        run: |
+          python scripts/110_build_coaching_summary.py
+
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v6
