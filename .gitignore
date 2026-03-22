@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Virtual env
+.venv/
+venv/
+
+# Secrets / local config
+.env
+.env.*
+
+# Local databases / data
+db/*.duckdb
+db/*.wal
+db/*.tmp
+
+# Raw / generated data
+data_raw/
+reports/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
