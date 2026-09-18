@@ -1,5 +1,6 @@
 name: Lean Mass Report Validation
 
+# One-time validation workflow; retry after aligning calorie/protein guidance.
 on:
   push:
     paths:
@@ -23,7 +24,7 @@ jobs:
           pip install -r weekly_requirements.txt
 
       - name: Compile changed scripts
-        run: python -m py_compile scripts/74_lean_mass_preservation.py scripts/100_run_weekly_coaching_stack.py scripts/81_build_weekly_coaching_packet.py scripts/111_build_coaching_summary.py
+        run: python -m py_compile scripts/73_adaptive_calorie_recommendation.py scripts/74_lean_mass_preservation.py scripts/80_weekly_coaching_report.py scripts/100_run_weekly_coaching_stack.py scripts/81_build_weekly_coaching_packet.py scripts/111_build_coaching_summary.py
 
       - name: Refresh live sources
         env:
@@ -48,4 +49,6 @@ jobs:
           grep -q "Lean-Mass Preservation" reports/lean_mass_preservation.txt
           grep -q "Lean-Mass Preservation" reports/weekly_coaching_packet.txt
           grep -q "Lean-Mass Preservation" reports/weekly_coaching_summary.txt
+          grep -q "Use the lean-mass preservation section" reports/adaptive_calorie_recommendation.txt
+          if grep -q "Do not change protein" reports/adaptive_calorie_recommendation.txt; then exit 1; fi
           cat reports/lean_mass_preservation.txt
