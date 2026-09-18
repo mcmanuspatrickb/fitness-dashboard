@@ -45,14 +45,44 @@ def main() -> None:
     con = duckdb.connect(str(DB_PATH))
 
     df = con.execute("""
-        WITH dates AS (
-            SELECT date
-            FROM analytics.daily_metrics
-            WHERE date >= CURRENT_DATE - 14
+        WITH source_dates AS (
+            SELECT
+                (SELECT MAX(date)
+                 FROM clean.body_composition
+                 WHERE weight_kg IS NOT NULL) AS body_date,
+                (SELECT MAX(date)
+                 FROM clean.fitbit_daily
+                 WHERE steps IS NOT NULL
+                    OR sleep_hours IS NOT NULL
+                    OR resting_hr IS NOT NULL
+                    OR hrv IS NOT NULL) AS activity_date,
+                (SELECT MAX(date)
+                 FROM clean.nutrition_daily
+                 WHERE calories IS NOT NULL
+                    OR protein_g IS NOT NULL) AS nutrition_date
+        ),
+        cutoff AS (
+            SELECT CASE
+                WHEN body_date IS NULL
+                  OR activity_date IS NULL
+                  OR nutrition_date IS NULL
+                THEN NULL
+                ELSE LEAST(body_date, activity_date, nutrition_date)
+            END AS analysis_end_date
+            FROM source_dates
+        ),
+        dates AS (
+            SELECT dm.date, c.analysis_end_date
+            FROM analytics.daily_metrics dm
+            CROSS JOIN cutoff c
+            WHERE c.analysis_end_date IS NOT NULL
+              AND dm.date BETWEEN c.analysis_end_date - INTERVAL 13 DAY
+                              AND c.analysis_end_date
         ),
         joined AS (
             SELECT
                 d.date,
+                d.analysis_end_date,
                 dm.weight_kg,
                 dm.fat_mass_kg,
                 dm.lean_mass_kg,
@@ -75,14 +105,17 @@ def main() -> None:
                 ON d.date = ts.date
         ),
         recent_7 AS (
-            SELECT * FROM joined WHERE date >= CURRENT_DATE - 7
+            SELECT * FROM joined
+            WHERE date BETWEEN analysis_end_date - INTERVAL 6 DAY
+                           AND analysis_end_date
         ),
         prior_7 AS (
             SELECT * FROM joined
-            WHERE date < CURRENT_DATE - 7
-              AND date >= CURRENT_DATE - 14
+            WHERE date BETWEEN analysis_end_date - INTERVAL 13 DAY
+                           AND analysis_end_date - INTERVAL 7 DAY
         )
         SELECT
+            (SELECT MAX(analysis_end_date) FROM joined) AS analysis_end_date,
             (SELECT AVG(weight_kg) FROM recent_7) AS recent_weight,
             (SELECT AVG(weight_kg) FROM prior_7) AS prior_weight,
 
@@ -112,8 +145,8 @@ def main() -> None:
 
     con.close()
 
-    if df.empty:
-        raise RuntimeError("No recent daily_metrics data found.")
+    if df.empty or pd.isna(df.iloc[0]["analysis_end_date"]):
+        raise RuntimeError("No complete recent reporting window found.")
 
     row = df.iloc[0]
 
@@ -167,7 +200,6 @@ def main() -> None:
     calorie_change = 0
     rationale: list[str] = []
 
-    # Priority 1: protect lean mass and recovery during a strength-focused phase
     if (
         pd.notna(lean_delta) and lean_delta < -0.25
         and (
@@ -186,7 +218,6 @@ def main() -> None:
         if strength_down >= 2:
             rationale.append("Several lifts are slipping, which often signals under-recovery or under-fueling.")
 
-    # Priority 2: if fat is dropping but strength is broadly good, a smaller increase can still help
     elif (
         pd.notna(fat_delta) and fat_delta < 0
         and pd.notna(lean_delta) and lean_delta < 0
@@ -198,7 +229,6 @@ def main() -> None:
         rationale.append("Fat loss is working, but some lean mass is being traded away.")
         rationale.append("Strength is still mostly holding, so a small calorie increase may improve quality without stopping progress.")
 
-    # Priority 3: sweet spot, do not touch
     elif (
         pd.notna(fat_delta) and fat_delta < 0
         and (pd.isna(lean_delta) or lean_delta >= -0.20)
@@ -209,7 +239,6 @@ def main() -> None:
         calorie_change = 0
         rationale.append("You appear to be in the sweet spot: fat is down, performance is good, and recovery looks acceptable.")
 
-    # Priority 4: if fat loss is stalled and recovery is fine, slight cut is okay
     elif (
         pd.notna(fat_delta) and fat_delta >= -0.10
         and (pd.isna(lean_delta) or lean_delta >= -0.20)
@@ -228,7 +257,6 @@ def main() -> None:
         rationale.append("The signal mix is not strong enough to justify a major calorie change.")
         rationale.append("Keep the plan steady and reassess after another week of consistent training and nutrition.")
 
-    # Macro suggestion for calorie change
     macro_hint = ""
     if calorie_change > 0:
         macro_hint = (
@@ -246,6 +274,8 @@ def main() -> None:
     lines: list[str] = []
     lines.append("Adaptive Calorie Recommendation")
     lines.append("==============================")
+    lines.append("")
+    lines.append(f"Reporting window ends: {row['analysis_end_date']}")
     lines.append("")
     lines.append("Current Trend")
     lines.append("-------------")
