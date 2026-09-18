@@ -21,25 +21,34 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install weekly dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r weekly_requirements.txt
 
-      - name: Install Playwright browsers
-        run: |
-          playwright install --with-deps
-
-      - name: Run coaching pipeline
+      - name: Refresh current source data
         env:
-          CRONOMETER_EMAIL: ${{ secrets.CRONOMETER_EMAIL }}
-          CRONOMETER_PASSWORD: ${{ secrets.CRONOMETER_PASSWORD }}
+          WITHINGS_DATABASE_URL: ${{ secrets.WITHINGS_DATABASE_URL }}
+          GOOGLE_HEALTH_CLIENT_ID: ${{ secrets.GOOGLE_HEALTH_CLIENT_ID }}
+          GOOGLE_HEALTH_CLIENT_SECRET: ${{ secrets.GOOGLE_HEALTH_CLIENT_SECRET }}
+          GOOGLE_HEALTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_HEALTH_REFRESH_TOKEN }}
+          HEVY_API_KEY: ${{ secrets.HEVY_API_KEY }}
+        run: |
+          python scripts/05_refresh_current_sources.py
+
+      - name: Rebuild coaching analytics
         run: |
           python scripts/100_run_weekly_coaching_stack.py
 
-      - name: Build coaching summary
+      - name: Validate data freshness
+        if: always()
         run: |
-          python scripts/110_build_coaching_summary.py
+          python scripts/95_validate_data_freshness.py
+
+      - name: Build email summary
+        if: always()
+        run: |
+          python scripts/111_build_coaching_summary.py
 
       - name: Upload reports
         if: always()
@@ -49,7 +58,7 @@ jobs:
           path: reports/
           if-no-files-found: warn
 
-      - name: Email reports
+      - name: Email weekly report
         if: always()
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
@@ -57,95 +66,73 @@ jobs:
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
         run: |
           python <<'EOF'
+          import json
+          import mimetypes
           import os
           import smtplib
-          import mimetypes
           from email.message import EmailMessage
           from pathlib import Path
-          from html import escape
-
-          email_user = os.environ["EMAIL_USER"]
-          email_password = os.environ["EMAIL_PASSWORD"]
-          email_to = os.environ["EMAIL_TO"]
 
           reports_dir = Path("reports")
-          attachments = []
+          freshness_path = reports_dir / "data_freshness.json"
+          status = "unknown"
+          if freshness_path.exists():
+              try:
+                  status = json.loads(freshness_path.read_text(encoding="utf-8")).get(
+                      "overall_status", "unknown"
+                  )
+              except Exception:
+                  pass
 
-          if reports_dir.exists():
-              attachments = sorted([p for p in reports_dir.rglob("*") if p.is_file()])
+          summary_txt = reports_dir / "weekly_coaching_summary.txt"
+          summary_html = reports_dir / "weekly_coaching_summary.html"
+
+          text_body = (
+              summary_txt.read_text(encoding="utf-8")
+              if summary_txt.exists()
+              else "The weekly workflow ran, but the summary file was not generated. Check the attached diagnostics."
+          )
+          html_body = (
+              summary_html.read_text(encoding="utf-8")
+              if summary_html.exists()
+              else "<html><body><h2>Weekly Coaching Report</h2><p>The summary file was not generated. Check the attached diagnostics.</p></body></html>"
+          )
+
+          attachment_names = [
+              "weekly_coaching_packet.txt",
+              "data_freshness.txt",
+              "source_refresh_status.txt",
+              "weekly_coaching_stack_log.txt",
+          ]
+          attachments = [
+              reports_dir / name
+              for name in attachment_names
+              if (reports_dir / name).exists()
+          ]
 
           msg = EmailMessage()
-          msg["Subject"] = "Weekly Coaching Report"
-          msg["From"] = email_user
-          msg["To"] = email_to
+          msg["Subject"] = f"Weekly Coaching Report — {status.upper()}"
+          msg["From"] = os.environ["EMAIL_USER"]
+          msg["To"] = os.environ["EMAIL_TO"]
+          msg.set_content(text_body)
+          msg.add_alternative(html_body, subtype="html")
 
-          if attachments:
-              file_list_text = "\n".join(f"- {p.name}" for p in attachments)
-              file_list_html = "".join(f"<li>{escape(p.name)}</li>" for p in attachments)
-
-              text_body = (
-                  "Your weekly coaching report is ready.\n\n"
-                  "Attached files:\n"
-                  f"{file_list_text}\n\n"
-                  "This email was sent automatically by your GitHub Actions workflow.\n"
+          for file_path in attachments:
+              mime_type, _ = mimetypes.guess_type(file_path.name)
+              if mime_type:
+                  maintype, subtype = mime_type.split("/", 1)
+              else:
+                  maintype, subtype = "application", "octet-stream"
+              msg.add_attachment(
+                  file_path.read_bytes(),
+                  maintype=maintype,
+                  subtype=subtype,
+                  filename=file_path.name,
               )
-
-              html_body = (
-                  "<!DOCTYPE html>"
-                  "<html>"
-                  "<body style='font-family: Arial, sans-serif; line-height: 1.5; color: #222;'>"
-                  "<h2 style='margin-bottom: 0.4em;'>Weekly Coaching Report</h2>"
-                  "<p>Your weekly coaching report is ready.</p>"
-                  "<p><strong>Attached files:</strong></p>"
-                  f"<ul>{file_list_html}</ul>"
-                  "<p style='margin-top: 1.5em; color: #666; font-size: 0.95em;'>"
-                  "This email was sent automatically by your GitHub Actions workflow."
-                  "</p>"
-                  "</body>"
-                  "</html>"
-              )
-
-              msg.set_content(text_body)
-              msg.add_alternative(html_body, subtype="html")
-
-              for file_path in attachments:
-                  mime_type, _ = mimetypes.guess_type(file_path.name)
-                  if mime_type:
-                      maintype, subtype = mime_type.split("/", 1)
-                  else:
-                      maintype, subtype = "application", "octet-stream"
-
-                  with open(file_path, "rb") as f:
-                      msg.add_attachment(
-                          f.read(),
-                          maintype=maintype,
-                          subtype=subtype,
-                          filename=file_path.name
-                      )
-          else:
-              text_body = (
-                  "The workflow ran, but no report files were found in the reports directory.\n\n"
-                  "Please check the GitHub Actions logs and artifacts.\n"
-              )
-
-              html_body = (
-                  "<!DOCTYPE html>"
-                  "<html>"
-                  "<body style='font-family: Arial, sans-serif; line-height: 1.5; color: #222;'>"
-                  "<h2 style='margin-bottom: 0.4em;'>Weekly Coaching Report</h2>"
-                  "<p>The workflow ran, but no report files were found in the "
-                  "<code>reports/</code> directory.</p>"
-                  "<p>Please check the GitHub Actions logs and artifacts.</p>"
-                  "</body>"
-                  "</html>"
-              )
-
-              msg.set_content(text_body)
-              msg.add_alternative(html_body, subtype="html")
 
           with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-              smtp.login(email_user, email_password)
+              smtp.login(os.environ["EMAIL_USER"], os.environ["EMAIL_PASSWORD"])
               smtp.send_message(msg)
 
-          print(f"Email sent. Attachments: {len(attachments)}")
+          print(f"Email sent. Data status: {status}. Attachments: {len(attachments)}")
           EOF
