@@ -115,9 +115,14 @@ def _trend_rows(trend: dict[str, Any]) -> list[tuple[str, str]]:
 
 def _strength_lines(strength_4w: list[dict[str, Any]]) -> list[str]:
     if not strength_4w:
-        return ["Not enough repeated lift observations in the four-week window."]
+        return ["Not enough comparable lift observations across the latest and prior four-week windows."]
     return [
-        f"{item['label']}: {item['change_e1rm']:+.1f} kg e1RM ({item['direction']}; {item['observations']} weekly observations)"
+        (
+            f"{item['label']}: current 4w best {_num(item['current_best_e1rm'], 1, ' kg')} vs "
+            f"prior 4w best {_num(item['prior_best_e1rm'], 1, ' kg')} e1RM; "
+            f"change {item['change_e1rm']:+.1f} kg ({item['direction']}; "
+            f"{item['current_observations']} current / {item['prior_observations']} prior weekly observations)"
+        )
         for item in strength_4w
     ]
 
@@ -161,6 +166,7 @@ def _build_text(
     lines.extend(["", "4-Week Context", "--------------"])
     lines.extend(f"{label}: {value}" for label, value in _trend_rows(trend))
     lines.extend(["", "4-Week Strength Context", "-----------------------"])
+    lines.append("Compares the best e1RM in the latest four weeks with the best e1RM in the prior four weeks.")
     lines.extend(f"- {item}" for item in _strength_lines(strength_4w))
     lines.extend(["", "Observations:"])
     lines.extend(f"- {item}" for item in observations)
@@ -228,12 +234,13 @@ def _build_html(
     <h3>4-Week Context</h3>
     <table style="border-collapse:collapse;margin-bottom:18px;">{_html_table(_trend_rows(trend))}</table>
     <h3>4-Week Strength Context</h3>
+    <p>Compares the best e1RM in the latest four weeks with the best e1RM in the prior four weeks.</p>
     <ul>{strength_html}</ul>
     <h3>Observations</h3>
     <ul>{observations_html}</ul>
     <h3>Items to review</h3>
     <ul>{review_html}</ul>
-    <p style="color:#666;font-size:0.9em;">Coverage confidence reflects completeness of the reporting window, not device measurement accuracy. Generated automatically from the fitness-dashboard analytics database.</p>
+    <p style="color:#666;font-size:0.9em;">Coverage confidence reflects completeness of the reporting window, not device measurement accuracy. Strength e1RM remains a training-performance proxy rather than a max test. Generated automatically from the fitness-dashboard analytics database.</p>
   </body>
 </html>
 """
