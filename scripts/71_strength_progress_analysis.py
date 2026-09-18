@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
+
 import duckdb
 import pandas as pd
 
@@ -13,62 +15,63 @@ OUT_DETAIL_CSV = REPORTS_DIR / "strength_progress_detail.csv"
 OUT_WEEKLY_CSV = REPORTS_DIR / "strength_progress_weekly.csv"
 OUT_TXT = REPORTS_DIR / "strength_progress_analysis.txt"
 
-
+# Match only genuinely comparable movement variants. The old version used broad
+# substring matching (for example, lat pulldowns counted as pull-ups and
+# dumbbell bench counted as barbell bench), which made week-to-week e1RM trends
+# misleading. After a strict title match, the script selects one current Hevy
+# exercise_template_id per lift and uses only that identity for the full trend.
 TARGET_LIFTS = {
-    "deadlift": [
-        "deadlift",
-        "barbell deadlift",
-        "deadlift (barbell)",
-    ],
-    "squat": [
-        "squat",
-        "barbell squat",
-        "squat (barbell)",
-        "barbell deep squat",
-        "deep squat",
-    ],
-    "bench_press": [
-        "bench press",
-        "bench press (barbell)",
-        "barbell bench press",
-        "bench press (dumbbell)",
-        "dumbbell bench press",
-    ],
-    "row": [
-        "row",
-        "seated cable row",
-        "seated cable row - bar grip",
-        "cable seated row",
-        "bent over row",
-        "barbell row",
-    ],
-    "pull_up": [
-        "pull up",
-        "pull-up",
-        "lat pulldown",
-        "lat pulldown (cable)",
-        "cable lat pulldown (wide grip)",
-    ],
-    "overhead_press": [
-        "overhead press",
-        "shoulder press",
-        "seated overhead press (dumbbell)",
-        "dumbbell seated shoulder press",
-        "upright row (barbell)",  # included only if that's part of your chosen proxy
-    ],
+    "deadlift": {
+        "include": r"\b(deadlift|conventional\s*deadlift|sumo\s*deadlift)\b",
+        "exclude": r"\b(romanian|rdl|stiff|single[ -]?leg)\b",
+    },
+    "squat": {
+        "include": r"\b(back\s*squat|barbell\s*squat|squat\s*\(barbell\)|barbell\s*deep\s*squat|deep\s*squat)\b",
+        "exclude": r"\b(front|goblet|hack|split|bulgarian)\b",
+    },
+    "bench_press": {
+        "include": r"\b(bench\s*press|barbell\s*bench|bench\s*\(barbell\))\b",
+        "exclude": r"\b(dumbbell|incline|decline|machine|smith)\b",
+    },
+    "row": {
+        "include": r"\b(cable\s*seated\s*row|seated\s*cable\s*row|cable\s*row(?:\s*\(seated\))?|seated\s*row\s*\(cable\))\b",
+        "exclude": r"\b(single[ -]?arm|one[ -]?arm|unilateral)\b",
+    },
+    "pull_up": {
+        "include": r"\b(pull[ -]?ups?|chin[ -]?ups?)\b",
+        "exclude": None,
+    },
+    "overhead_press": {
+        "include": r"\b(overhead\s*press|military\s*press|shoulder\s*press\s*\(barbell\)|barbell\s*overhead)\b",
+        "exclude": r"\b(dumbbell|machine|smith|seated|upright)\b",
+    },
 }
+
+EXCLUDED_SET_TYPES = {
+    "warmup",
+    "warm-up",
+    "warm_up",
+    "dropset",
+    "drop-set",
+    "drop_set",
+    "drop set",
+}
+MAX_E1RM_REPS = 12
 
 
 def normalize_text(x: str) -> str:
-    return " ".join(str(x).strip().lower().replace("-", " ").split())
+    return " ".join(str(x).strip().lower().split())
 
 
 def match_lift(exercise_title: str) -> str | None:
     title = normalize_text(exercise_title)
-    for lift, patterns in TARGET_LIFTS.items():
-        for pattern in patterns:
-            if normalize_text(pattern) in title:
-                return lift
+    for lift, spec in TARGET_LIFTS.items():
+        if not re.search(spec["include"], title, flags=re.IGNORECASE):
+            continue
+        exclude = spec.get("exclude")
+        if exclude and re.search(exclude, title, flags=re.IGNORECASE):
+            continue
+        return lift
     return None
 
 
@@ -77,7 +80,7 @@ def estimate_1rm(weight_kg: float | None, reps: float | None) -> float | None:
         return None
     if pd.isna(weight_kg) or pd.isna(reps):
         return None
-    if reps <= 0 or weight_kg <= 0:
+    if reps <= 0 or weight_kg <= 0 or reps > MAX_E1RM_REPS:
         return None
     return float(weight_kg) * (1.0 + float(reps) / 30.0)
 
@@ -87,9 +90,97 @@ def classify_set(row: pd.Series) -> bool:
     reps = row.get("reps")
     if pd.isna(weight) or pd.isna(reps):
         return False
-    if weight <= 0 or reps <= 0:
+    if weight <= 0 or reps <= 0 or reps > MAX_E1RM_REPS:
+        return False
+
+    set_type = normalize_text(row.get("set_type", "normal"))
+    if set_type in EXCLUDED_SET_TYPES:
         return False
     return True
+
+
+def choose_tracked_identities(df: pd.DataFrame) -> dict[str, dict[str, str]]:
+    """Choose one current Hevy identity per target lift.
+
+    Preference is the template ID used most recently. Ties are broken by the
+    number of distinct workouts and then the number of qualifying sets. If an
+    old row has no template ID, exact normalized title is used as a fallback.
+    """
+    identities: dict[str, dict[str, str]] = {}
+
+    for lift, sub in df.groupby("target_lift"):
+        with_id = sub[
+            sub["exercise_template_id"].notna()
+            & sub["exercise_template_id"].astype(str).str.strip().ne("")
+        ].copy()
+
+        if not with_id.empty:
+            stats = (
+                with_id.groupby("exercise_template_id", as_index=False)
+                .agg(
+                    latest_date=("date", "max"),
+                    workout_count=("workout_id", "nunique"),
+                    set_count=("workout_id", "size"),
+                )
+                .sort_values(
+                    ["latest_date", "workout_count", "set_count"],
+                    ascending=[False, False, False],
+                )
+            )
+            template_id = str(stats.iloc[0]["exercise_template_id"])
+            chosen = with_id[with_id["exercise_template_id"].astype(str) == template_id]
+            latest_row = chosen.sort_values("date").iloc[-1]
+            identities[lift] = {
+                "kind": "template_id",
+                "value": template_id,
+                "title": str(latest_row["exercise_title"]),
+            }
+            continue
+
+        title_stats = (
+            sub.groupby("exercise_title_norm", as_index=False)
+            .agg(
+                latest_date=("date", "max"),
+                workout_count=("workout_id", "nunique"),
+                set_count=("workout_id", "size"),
+            )
+            .sort_values(
+                ["latest_date", "workout_count", "set_count"],
+                ascending=[False, False, False],
+            )
+        )
+        title_norm = str(title_stats.iloc[0]["exercise_title_norm"])
+        chosen = sub[sub["exercise_title_norm"] == title_norm]
+        latest_row = chosen.sort_values("date").iloc[-1]
+        identities[lift] = {
+            "kind": "title",
+            "value": title_norm,
+            "title": str(latest_row["exercise_title"]),
+        }
+
+    return identities
+
+
+def filter_to_tracked_identities(
+    df: pd.DataFrame,
+    identities: dict[str, dict[str, str]],
+) -> pd.DataFrame:
+    masks = []
+    for lift, identity in identities.items():
+        lift_mask = df["target_lift"] == lift
+        if identity["kind"] == "template_id":
+            identity_mask = df["exercise_template_id"].astype(str) == identity["value"]
+        else:
+            identity_mask = df["exercise_title_norm"] == identity["value"]
+        masks.append(lift_mask & identity_mask)
+
+    if not masks:
+        return df.iloc[0:0].copy()
+
+    combined = masks[0]
+    for mask in masks[1:]:
+        combined = combined | mask
+    return df[combined].copy()
 
 
 def main() -> None:
@@ -126,7 +217,6 @@ def main() -> None:
         ORDER BY ordinal_position
     """).fetchdf()["column_name"].tolist()
 
-    # Try to adapt to your actual schema
     exercise_title_col = None
     for c in ["exercise_title", "title", "exercise_name"]:
         if c in set_cols:
@@ -139,32 +229,33 @@ def main() -> None:
             workout_date_col = c
             break
 
-    join_key = None
-    for c in ["workout_id"]:
-        if c in set_cols and c in workout_cols:
-            join_key = c
-            break
+    join_key = "workout_id" if "workout_id" in set_cols and "workout_id" in workout_cols else None
 
     if exercise_title_col is None:
         raise RuntimeError(
             f"Could not find exercise title column in raw.hevy_sets. Found: {set_cols}"
         )
-
     if workout_date_col is None:
         raise RuntimeError(
             f"Could not find workout date column in raw.hevy_workouts. Found: {workout_cols}"
         )
-
     if join_key is None:
         raise RuntimeError(
-            f"Could not find workout join key between raw.hevy_sets and raw.hevy_workouts."
+            "Could not find workout join key between raw.hevy_sets and raw.hevy_workouts."
         )
+
+    template_id_expr = (
+        "s.exercise_template_id"
+        if "exercise_template_id" in set_cols
+        else "NULL::VARCHAR"
+    )
 
     query = f"""
         SELECT
             s.{join_key} AS workout_id,
             CAST(w.{workout_date_col} AS DATE) AS date,
             s.{exercise_title_col} AS exercise_title,
+            {template_id_expr} AS exercise_template_id,
             s.weight_kg,
             s.reps,
             s.set_index,
@@ -187,24 +278,32 @@ def main() -> None:
     df = df[df["target_lift"].notna()].copy()
 
     if df.empty:
-        raise RuntimeError("No target lift matches found in raw.hevy_sets.")
+        raise RuntimeError("No strict target-lift matches found in raw.hevy_sets.")
 
     df["is_strength_set"] = df.apply(classify_set, axis=1)
     df = df[df["is_strength_set"]].copy()
 
     if df.empty:
-        raise RuntimeError("Matched lifts found, but no usable weighted-rep strength sets were available.")
+        raise RuntimeError(
+            "Target lifts were found, but no comparable working sets in the 1-12 rep range were available."
+        )
+
+    identities = choose_tracked_identities(df)
+    df = filter_to_tracked_identities(df, identities)
+
+    if df.empty:
+        raise RuntimeError("No sets remained after selecting tracked Hevy exercise identities.")
 
     df["estimated_1rm"] = df.apply(
         lambda r: estimate_1rm(r["weight_kg"], r["reps"]),
-        axis=1
+        axis=1,
     )
+    df = df[df["estimated_1rm"].notna()].copy()
 
-    # Per-workout best set for each lift
     detail = (
         df.sort_values(
             ["date", "target_lift", "estimated_1rm", "weight_kg", "reps"],
-            ascending=[True, True, False, False, False]
+            ascending=[True, True, False, False, False],
         )
         .groupby(["date", "workout_id", "target_lift"], as_index=False)
         .first()
@@ -216,6 +315,7 @@ def main() -> None:
             "workout_id",
             "target_lift",
             "exercise_title",
+            "exercise_template_id",
             "weight_kg",
             "reps",
             "estimated_1rm",
@@ -229,11 +329,10 @@ def main() -> None:
     )
     detail["week_start"] = detail["week_start"].dt.date
 
-    # Weekly best set / weekly best e1RM
     weekly = (
         detail.sort_values(
             ["week_start", "target_lift", "estimated_1rm", "weight_kg", "reps"],
-            ascending=[True, True, False, False, False]
+            ascending=[True, True, False, False, False],
         )
         .groupby(["week_start", "target_lift"], as_index=False)
         .first()
@@ -260,7 +359,20 @@ def main() -> None:
     lines.append("Strength Progress Analysis")
     lines.append("==========================")
     lines.append("")
+    lines.append("Tracked Exercise Identities")
+    lines.append("---------------------------")
+    for lift in sorted(identities):
+        identity = identities[lift]
+        if identity["kind"] == "template_id":
+            lines.append(
+                f"{lift}: {identity['title']} | Hevy template={identity['value']}"
+            )
+        else:
+            lines.append(
+                f"{lift}: {identity['title']} | exact-title fallback"
+            )
 
+    lines.append("")
     lines.append("Latest Weekly Snapshot")
     lines.append("----------------------")
 
@@ -293,15 +405,12 @@ def main() -> None:
         )
 
     lines.append("")
-    lines.append("Coaching Notes")
-    lines.append("-------------")
-    lines.append("With 2 strength sessions per week, the goal is not maximum volume. It is high-quality progression.")
-    lines.append("Focus on:")
-    lines.append("- one strong top set per target movement or close variation")
-    lines.append("- enough calories to support training quality")
-    lines.append("- high protein consistency")
-    lines.append("- low junk fatigue outside the gym")
-    lines.append("- steady weekly progression, not dramatic jumps")
+    lines.append("Method Notes")
+    lines.append("------------")
+    lines.append("- each lift uses one current Hevy exercise identity; unlike variants are not mixed")
+    lines.append("- warm-up and drop sets are excluded")
+    lines.append(f"- e1RM uses working sets of 1-{MAX_E1RM_REPS} reps")
+    lines.append("- weekly trend is a best-set e1RM proxy, not a substitute for an actual max test")
 
     OUT_TXT.write_text("\n".join(lines), encoding="utf-8")
 
