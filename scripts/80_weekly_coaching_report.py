@@ -220,14 +220,17 @@ def main() -> None:
 
     lines.append("4-Week Strength Context")
     lines.append("-----------------------")
+    lines.append("Compares the best e1RM in the latest four weeks with the best e1RM in the prior four weeks.")
     if strength_4w:
         for item in strength_4w:
             lines.append(
-                f"{item['label']}: {item['change_e1rm']:+.1f} kg e1RM "
-                f"({item['direction']}; {item['observations']} weekly observations)"
+                f"{item['label']}: current 4w best {item['current_best_e1rm']:.1f} kg vs "
+                f"prior 4w best {item['prior_best_e1rm']:.1f} kg e1RM; "
+                f"change {item['change_e1rm']:+.1f} kg ({item['direction']}; "
+                f"{item['current_observations']} current / {item['prior_observations']} prior weekly observations)"
             )
     else:
-        lines.append("Not enough repeated lift observations in the four-week window.")
+        lines.append("Not enough comparable lift observations across the latest and prior four-week windows.")
     lines.append("")
 
     lines.append("Overall Grade")
