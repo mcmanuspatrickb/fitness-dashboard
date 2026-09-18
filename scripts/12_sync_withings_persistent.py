@@ -12,8 +12,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = PROJECT_ROOT / "db" / "fitness.duckdb"
 LOOKBACK_DAYS = int(os.getenv("WITHINGS_LOOKBACK_DAYS", "400"))
 
+# Keep this aligned with the production Health_Dashboard Withings scale mapping.
+# Segmental measures have their own type IDs, so the whole-body types below can
+# safely be loaded regardless of Withings' position_key value.
 TYPE_TO_FIELD = {
     1: "weight_kg",
+    5: "fat_free_mass_kg",
     6: "fat_percent",
     8: "fat_mass_kg",
     76: "muscle_mass_kg",
@@ -38,17 +42,22 @@ def fetch_persistent_measurements() -> pd.DataFrame:
 
     start = datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)
 
+    # Do not filter position_key here. The production dashboard reads all
+    # persisted measurement rows, and recent Body Comp metrics can carry a
+    # non--1 position_key even for scalar whole-body values. Filtering to -1
+    # caused the weekly pipeline to receive current weight but lose current fat,
+    # muscle, water and related body-composition values.
     with psycopg.connect(database_url) as conn:
         rows = conn.execute(
             """
             SELECT grpid, measured_at, type_id, scalar_value
             FROM withings_measurements
             WHERE measured_at >= %s
-              AND position_key = -1
               AND scalar_value IS NOT NULL
+              AND type_id = ANY(%s)
             ORDER BY measured_at, grpid, type_id
             """,
-            (start,),
+            (start, list(TYPE_TO_FIELD)),
         ).fetchall()
 
     if not rows:
@@ -82,7 +91,14 @@ def fetch_persistent_measurements() -> pd.DataFrame:
         if column not in wide.columns:
             wide[column] = pd.NA
 
-    wide["date"] = wide["measurement_time"].dt.date
+    # Match the production dashboard's civil-date handling. Measurements are
+    # stored as UTC in Postgres but the user's scale sessions are interpreted in
+    # Europe/Berlin local time.
+    wide["date"] = (
+        wide["measurement_time"]
+        .dt.tz_convert("Europe/Berlin")
+        .dt.date
+    )
 
     weight = pd.to_numeric(wide["weight_kg"], errors="coerce")
     muscle_mass = pd.to_numeric(wide["muscle_mass_kg"], errors="coerce")
@@ -99,6 +115,7 @@ def fetch_persistent_measurements() -> pd.DataFrame:
             "weight_kg",
             "fat_percent",
             "fat_mass_kg",
+            "fat_free_mass_kg",
             "muscle_percent",
             "muscle_mass_kg",
             "body_water_percent",
@@ -107,6 +124,21 @@ def fetch_persistent_measurements() -> pd.DataFrame:
             "source",
         ]
     ].sort_values("measurement_time")
+
+
+def _ensure_column(con: duckdb.DuckDBPyConnection, column: str, dtype: str) -> None:
+    exists = con.execute(
+        """
+        SELECT COUNT(*)
+        FROM information_schema.columns
+        WHERE table_schema='raw'
+          AND table_name='withings_measurements'
+          AND column_name=?
+        """,
+        [column],
+    ).fetchone()[0]
+    if not exists:
+        con.execute(f"ALTER TABLE raw.withings_measurements ADD COLUMN {column} {dtype}")
 
 
 def main() -> None:
@@ -125,6 +157,7 @@ def main() -> None:
                 weight_kg DOUBLE,
                 fat_percent DOUBLE,
                 fat_mass_kg DOUBLE,
+                fat_free_mass_kg DOUBLE,
                 muscle_percent DOUBLE,
                 muscle_mass_kg DOUBLE,
                 body_water_percent DOUBLE,
@@ -135,6 +168,7 @@ def main() -> None:
             )
             """
         )
+        _ensure_column(con, "fat_free_mass_kg", "DOUBLE")
 
         first_date = min(df["date"])
         con.execute(
@@ -150,6 +184,7 @@ def main() -> None:
                 weight_kg,
                 fat_percent,
                 fat_mass_kg,
+                fat_free_mass_kg,
                 muscle_percent,
                 muscle_mass_kg,
                 body_water_percent,
@@ -163,6 +198,7 @@ def main() -> None:
                 weight_kg,
                 fat_percent,
                 fat_mass_kg,
+                fat_free_mass_kg,
                 muscle_percent,
                 muscle_mass_kg,
                 body_water_percent,
@@ -177,11 +213,20 @@ def main() -> None:
         latest = con.execute(
             "SELECT MAX(date) FROM raw.withings_measurements"
         ).fetchone()[0]
+        latest_complete = con.execute(
+            """
+            SELECT MAX(date)
+            FROM raw.withings_measurements
+            WHERE weight_kg IS NOT NULL
+              AND (fat_mass_kg IS NOT NULL OR fat_percent IS NOT NULL)
+            """
+        ).fetchone()[0]
     finally:
         con.close()
 
     print(f"Synced {len(df)} recent Withings measurement groups.")
     print(f"Latest Withings date in DuckDB: {latest}")
+    print(f"Latest Withings body-composition date: {latest_complete}")
 
 
 if __name__ == "__main__":
