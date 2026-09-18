@@ -98,6 +98,9 @@ def main() -> None:
 
     overall_grade = extract_section_by_heading_lines(weekly_report, "Overall Grade")
     next_week_focus = extract_section_by_heading_lines(weekly_report, "Next Week Focus")
+    data_quality = extract_section_by_heading_lines(weekly_report, "Data Quality")
+    four_week_context = extract_section_by_heading_lines(weekly_report, "4-Week Context")
+    four_week_strength = extract_section_by_heading_lines(weekly_report, "4-Week Strength Context")
     body_comp = extract_section_by_heading_lines(weekly_report, "Body Composition")
     recovery = extract_section_by_heading_lines(weekly_report, "Recovery")
     nutrition = extract_section_by_heading_lines(weekly_report, "Nutrition")
@@ -134,6 +137,21 @@ def main() -> None:
         overall_grade.splitlines()[0] if overall_grade else "",
     )
     lines.append(top_line if top_line else "No top-line summary available.")
+    lines.append("")
+
+    lines.append("Data Quality")
+    lines.append("------------")
+    lines.append(data_quality if data_quality else "No data-quality summary available.")
+    lines.append("")
+
+    lines.append("4-Week Context")
+    lines.append("--------------")
+    lines.append(four_week_context if four_week_context else "No four-week context available.")
+    lines.append("")
+
+    lines.append("4-Week Strength Context")
+    lines.append("-----------------------")
+    lines.append(four_week_strength if four_week_strength else "No four-week strength context available.")
     lines.append("")
 
     lines.append("Body Composition and Recovery")
