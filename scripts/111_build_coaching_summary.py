@@ -38,15 +38,36 @@ def _num(value: Any, decimals: int = 1, suffix: str = "") -> str:
 def _load_window() -> tuple[pd.DataFrame, pd.DataFrame, date | None]:
     con = duckdb.connect(str(DB_PATH), read_only=True)
     try:
+        # Anchor the report to the latest day for which the core daily sources
+        # all have data. This prevents a same-day Withings weigh-in from shifting
+        # the email window ahead of Google Health/Cronometer and making the email
+        # disagree with the attached coaching packet.
         latest = con.execute(
             """
-            SELECT MAX(date)
-            FROM analytics.daily_metrics
-            WHERE weight_kg IS NOT NULL
-               OR steps IS NOT NULL
-               OR sleep_hours IS NOT NULL
-               OR calories IS NOT NULL
-               OR workout_count IS NOT NULL
+            WITH source_dates AS (
+                SELECT
+                    (SELECT MAX(date)
+                     FROM clean.body_composition
+                     WHERE weight_kg IS NOT NULL) AS body_date,
+                    (SELECT MAX(date)
+                     FROM clean.fitbit_daily
+                     WHERE steps IS NOT NULL
+                        OR sleep_hours IS NOT NULL
+                        OR resting_hr IS NOT NULL
+                        OR hrv IS NOT NULL) AS activity_date,
+                    (SELECT MAX(date)
+                     FROM clean.nutrition_daily
+                     WHERE calories IS NOT NULL
+                        OR protein_g IS NOT NULL) AS nutrition_date
+            )
+            SELECT CASE
+                WHEN body_date IS NULL
+                  OR activity_date IS NULL
+                  OR nutrition_date IS NULL
+                THEN NULL
+                ELSE LEAST(body_date, activity_date, nutrition_date)
+            END
+            FROM source_dates
             """
         ).fetchone()[0]
         if latest is None:
@@ -188,9 +209,9 @@ def _build_text(
         "=======================",
         "",
         f"Data status: {status.upper()}",
-        f"Latest analysis date: {latest_date.isoformat() if latest_date else 'n/a'}",
+        f"Latest complete analysis date: {latest_date.isoformat() if latest_date else 'n/a'}",
         "",
-        f"Latest weight: {_num(metrics.get('latest_weight'), 2, ' kg')}",
+        f"Latest weight in reporting window: {_num(metrics.get('latest_weight'), 2, ' kg')}",
         f"7-day average weight: {_num(metrics.get('avg_weight'), 2, ' kg')}",
         f"Weight change vs prior 7d: {_num(metrics.get('weight_change_vs_prior_7d'), 2, ' kg')}",
         f"7-day average fat mass: {_num(metrics.get('avg_fat_mass'), 2, ' kg')}",
@@ -226,8 +247,8 @@ def _build_html(
     }.get(status, "Freshness could not be fully determined.")
 
     rows = [
-        ("Latest analysis date", latest_date.isoformat() if latest_date else "n/a"),
-        ("Latest weight", _num(metrics.get("latest_weight"), 2, " kg")),
+        ("Latest complete analysis date", latest_date.isoformat() if latest_date else "n/a"),
+        ("Latest weight in reporting window", _num(metrics.get("latest_weight"), 2, " kg")),
         ("7-day average weight", _num(metrics.get("avg_weight"), 2, " kg")),
         ("Weight change vs prior 7d", _num(metrics.get("weight_change_vs_prior_7d"), 2, " kg")),
         ("7-day average fat mass", _num(metrics.get("avg_fat_mass"), 2, " kg")),
