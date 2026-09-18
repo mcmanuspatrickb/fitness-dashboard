@@ -60,17 +60,30 @@ def main() -> None:
         notes.append("Lean mass held steady or improved.")
     elif lean_delta is not None and lean_delta < -0.25:
         score -= 2
-        notes.append("Lean mass appears to be slipping.")
-        next_week.append("Increase protein consistency and protect training quality.")
+        notes.append("BIA-estimated lean mass appears to be slipping; cross-check the multi-week trend against strength before treating it as muscle loss.")
+        next_week.append("Prioritize the lean-mass preservation protein target and protect training quality.")
 
     recent_protein = row.get("recent_protein")
-    if recent_protein is not None and recent_protein >= 110:
+    recent_lean = row.get("recent_lean")
+    protein_target_low = None
+    if recent_lean is not None and not pd.isna(recent_lean) and float(recent_lean) > 0:
+        protein_target_low = float(recent_lean) * 1.8
+
+    if (
+        recent_protein is not None
+        and protein_target_low is not None
+        and float(recent_protein) >= protein_target_low
+    ):
         score += 2
-        notes.append("Protein intake looks supportive for recomp.")
+        notes.append("Protein is within the current lean-mass preservation working range.")
+    elif recent_protein is not None and recent_protein >= 110:
+        score += 1
+        notes.append("Protein is a reasonable baseline, but it is below the current lean-mass preservation working range.")
+        next_week.append("Use the lean-mass preservation section for the personalized protein target.")
     elif recent_protein is not None:
         score -= 2
-        notes.append("Protein is low for a strength-focused phase.")
-        next_week.append("Push protein toward 110–130 g/day.")
+        notes.append("Protein is low for a strength-focused fat-loss phase.")
+        next_week.append("Use the lean-mass preservation section for the personalized protein target.")
     else:
         notes.append("Protein data is unavailable for this reporting window.")
 
