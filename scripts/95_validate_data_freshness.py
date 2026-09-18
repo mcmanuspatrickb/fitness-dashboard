@@ -17,7 +17,15 @@ OUTPUT_TXT = REPORTS_DIR / "data_freshness.txt"
 
 CHECKS = {
     "body_composition": {
-        "sql": "SELECT MAX(date) FROM clean.body_composition WHERE weight_kg IS NOT NULL",
+        # A current weight alone is not enough for the weekly body-composition
+        # interpretation. Require a recent composition value as well so missing
+        # Withings fat data cannot be reported as a healthy/fresh source.
+        "sql": """
+            SELECT MAX(date)
+            FROM clean.body_composition
+            WHERE weight_kg IS NOT NULL
+              AND (fat_mass_kg IS NOT NULL OR body_fat_percent IS NOT NULL)
+        """,
         "max_age_days": 14,
     },
     "activity_recovery": {
