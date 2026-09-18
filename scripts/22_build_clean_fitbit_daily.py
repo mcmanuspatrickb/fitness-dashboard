@@ -6,6 +6,20 @@ con = duckdb.connect(DB_PATH)
 
 con.execute("CREATE SCHEMA IF NOT EXISTS clean")
 
+# The legacy table name raw.fitbit_daily is retained for compatibility, but
+# current scheduled data is now written there by the Google Health importer.
+raw_fitbit_cols = {
+    row[0]
+    for row in con.execute("""
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'raw'
+          AND table_name = 'fitbit_daily'
+    """).fetchall()
+}
+if "source" not in raw_fitbit_cols:
+    con.execute("ALTER TABLE raw.fitbit_daily ADD COLUMN source VARCHAR")
+
 con.execute("""
 CREATE TABLE IF NOT EXISTS clean.fitbit_daily (
     date DATE,
@@ -134,7 +148,7 @@ SELECT
     COALESCE(f.sleep_score, ss.overall_score) AS sleep_score,
     COALESCE(f.sleep_restlessness, ss.restlessness) AS sleep_restlessness,
     CASE
-        WHEN f.date IS NOT NULL THEN 'fitbit_api_recent'
+        WHEN f.date IS NOT NULL THEN COALESCE(NULLIF(f.source, ''), 'fitbit_api_recent')
         WHEN hs.date IS NOT NULL THEN 'fitbit_takeout_steps'
         ELSE 'fitbit_sleep_hrv_only'
     END AS source
