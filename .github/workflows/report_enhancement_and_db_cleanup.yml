@@ -1,0 +1,95 @@
+name: Report Enhancement and DB Cleanup
+
+on:
+  push:
+    paths:
+      - ".github/workflows/report_enhancement_and_db_cleanup.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-clean:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install weekly dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r weekly_requirements.txt
+
+      - name: Compile changed scripts
+        run: |
+          python -m py_compile scripts/report_context.py scripts/80_weekly_coaching_report.py scripts/81_build_weekly_coaching_packet.py scripts/98_sanitize_seed_database.py scripts/111_build_coaching_summary.py
+
+      - name: Sanitize seed database
+        run: python scripts/98_sanitize_seed_database.py
+
+      - name: Refresh live sources
+        env:
+          WITHINGS_DATABASE_URL: ${{ secrets.WITHINGS_DATABASE_URL }}
+          GOOGLE_HEALTH_CLIENT_ID: ${{ secrets.GOOGLE_HEALTH_CLIENT_ID }}
+          GOOGLE_HEALTH_CLIENT_SECRET: ${{ secrets.GOOGLE_HEALTH_CLIENT_SECRET }}
+          GOOGLE_HEALTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_HEALTH_REFRESH_TOKEN }}
+          HEVY_API_KEY: ${{ secrets.HEVY_API_KEY }}
+        run: python scripts/05_refresh_current_sources.py
+
+      - name: Rebuild analytics
+        run: python scripts/100_run_weekly_coaching_stack.py
+
+      - name: Validate freshness
+        run: python scripts/95_validate_data_freshness.py
+
+      - name: Build email summary
+        run: python scripts/111_build_coaching_summary.py
+
+      - name: Validate enhanced report sections
+        run: |
+          grep -q "Data Quality" reports/weekly_coaching_summary.txt
+          grep -q "Coverage confidence" reports/weekly_coaching_summary.txt
+          grep -q "4-Week Context" reports/weekly_coaching_summary.txt
+          grep -q "4-Week Strength Context" reports/weekly_coaching_summary.txt
+          grep -q "Data Quality" reports/weekly_coaching_packet.txt
+          grep -q "4-Week Context" reports/weekly_coaching_packet.txt
+          cat reports/weekly_coaching_summary.txt
+
+      - name: Verify credential tables are empty
+        run: |
+          python - <<'PY'
+          import duckdb
+          con = duckdb.connect('db/fitness.duckdb', read_only=True)
+          rows = con.execute("""
+              SELECT DISTINCT table_schema, table_name
+              FROM information_schema.columns
+              WHERE lower(column_name) IN (
+                  'access_token', 'refresh_token', 'client_secret',
+                  'password', 'cookie', 'cookies', 'storage_state'
+              )
+              ORDER BY table_schema, table_name
+          """).fetchall()
+          for schema, table in rows:
+              count = con.execute(f'SELECT COUNT(*) FROM "{schema}"."{table}"').fetchone()[0]
+              print(f'{schema}.{table}: {count} rows')
+              if count:
+                  raise SystemExit(f'Credential-bearing table still contains rows: {schema}.{table}')
+          con.close()
+          PY
+
+      - name: Commit sanitized database
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add db/fitness.duckdb
+          if git diff --cached --quiet; then
+            echo "No database change to commit."
+          else
+            git commit -m "Sanitize seed database credentials"
+            git push
+          fi
