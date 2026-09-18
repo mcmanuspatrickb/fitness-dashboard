@@ -98,15 +98,14 @@ jobs:
               else "<html><body><h2>Weekly Coaching Report</h2><p>The summary file was not generated. Check the attached diagnostics.</p></body></html>"
           )
 
+          # Incomplete-data emails contain only source/freshness diagnostics.
+          # The full coaching packet is attached only after every core source
+          # passes freshness checks, so missing data cannot be interpreted as
+          # low protein, poor recovery, or missed training.
           attachment_names = [
               "data_freshness.txt",
               "source_refresh_status.txt",
-              "weekly_coaching_stack_log.txt",
           ]
-
-          # Only attach prescriptive coaching output when all core data sources
-          # are fresh. PARTIAL and STALE emails remain descriptive/diagnostic so
-          # missing data cannot be mistaken for poor nutrition, recovery, or training.
           if status == "fresh":
               attachment_names.insert(0, "weekly_coaching_packet.txt")
 
