@@ -37,14 +37,44 @@ def main() -> None:
     con = duckdb.connect(str(DB_PATH))
 
     body_df = con.execute("""
-        WITH dates AS (
-            SELECT date
-            FROM analytics.daily_metrics
-            WHERE date >= CURRENT_DATE - 14
+        WITH source_dates AS (
+            SELECT
+                (SELECT MAX(date)
+                 FROM clean.body_composition
+                 WHERE weight_kg IS NOT NULL) AS body_date,
+                (SELECT MAX(date)
+                 FROM clean.fitbit_daily
+                 WHERE steps IS NOT NULL
+                    OR sleep_hours IS NOT NULL
+                    OR resting_hr IS NOT NULL
+                    OR hrv IS NOT NULL) AS activity_date,
+                (SELECT MAX(date)
+                 FROM clean.nutrition_daily
+                 WHERE calories IS NOT NULL
+                    OR protein_g IS NOT NULL) AS nutrition_date
+        ),
+        cutoff AS (
+            SELECT CASE
+                WHEN body_date IS NULL
+                  OR activity_date IS NULL
+                  OR nutrition_date IS NULL
+                THEN NULL
+                ELSE LEAST(body_date, activity_date, nutrition_date)
+            END AS analysis_end_date
+            FROM source_dates
+        ),
+        dates AS (
+            SELECT dm.date, c.analysis_end_date
+            FROM analytics.daily_metrics dm
+            CROSS JOIN cutoff c
+            WHERE c.analysis_end_date IS NOT NULL
+              AND dm.date BETWEEN c.analysis_end_date - INTERVAL 13 DAY
+                              AND c.analysis_end_date
         ),
         joined AS (
             SELECT
                 d.date,
+                d.analysis_end_date,
                 dm.weight_kg,
                 dm.fat_mass_kg,
                 dm.lean_mass_kg,
@@ -67,14 +97,17 @@ def main() -> None:
                 ON d.date = t.date
         ),
         recent_7 AS (
-            SELECT * FROM joined WHERE date >= CURRENT_DATE - 7
+            SELECT * FROM joined
+            WHERE date BETWEEN analysis_end_date - INTERVAL 6 DAY
+                           AND analysis_end_date
         ),
         prior_7 AS (
             SELECT * FROM joined
-            WHERE date < CURRENT_DATE - 7
-              AND date >= CURRENT_DATE - 14
+            WHERE date BETWEEN analysis_end_date - INTERVAL 13 DAY
+                           AND analysis_end_date - INTERVAL 7 DAY
         )
         SELECT
+            (SELECT MAX(analysis_end_date) FROM joined) AS analysis_end_date,
             (SELECT AVG(weight_kg) FROM recent_7) AS recent_weight,
             (SELECT AVG(weight_kg) FROM prior_7) AS prior_weight,
 
@@ -114,8 +147,8 @@ def main() -> None:
 
     con.close()
 
-    if body_df.empty:
-        print("No body/recovery data found.")
+    if body_df.empty or pd.isna(body_df.iloc[0]["analysis_end_date"]):
+        print("No complete body/recovery reporting window found.")
         return
 
     row = body_df.iloc[0]
@@ -190,7 +223,9 @@ def main() -> None:
 
     if pd.notna(lean_delta) and lean_delta < -0.25:
         notes.append("Lean mass is slipping enough to matter for a strength-focused phase.")
-        recommendations.append("Increase calories slightly or reduce total fatigue so lean mass stabilizes.")
+        recommendations.append(
+            "Prioritize recovery and keep calories steady for now; consider a modest calorie increase only if the lean-mass decline persists or the adaptive calorie recommendation also calls for an increase."
+        )
 
     if pd.notna(rhr_delta) and rhr_delta > 3:
         notes.append("Resting HR is elevated versus the prior week, suggesting recovery stress.")
@@ -255,6 +290,8 @@ def main() -> None:
     lines: list[str] = []
     lines.append("Strength-Adjusted Coaching")
     lines.append("==========================")
+    lines.append("")
+    lines.append(f"Reporting window ends: {row['analysis_end_date']}")
     lines.append("")
     lines.append("Headline")
     lines.append("--------")
