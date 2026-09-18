@@ -269,7 +269,10 @@ def main() -> None:
             f"rather than protein."
         )
     else:
-        macro_hint = "Hold current calories steady. Do not change protein."
+        macro_hint = (
+            "Hold current calories steady. Use the lean-mass preservation section "
+            "to guide protein rather than assuming protein should stay unchanged."
+        )
 
     lines: list[str] = []
     lines.append("Adaptive Calorie Recommendation")
