@@ -31,8 +31,9 @@ WITH ranked AS (
             PARTITION BY date
             ORDER BY
                 CASE
-                    WHEN source = 'cronometer_export' THEN 1
-                    WHEN source = 'mfp_history' THEN 2
+                    WHEN source = 'google_health_cronometer' THEN 1
+                    WHEN source = 'cronometer_export' THEN 2
+                    WHEN source = 'mfp_history' THEN 3
                     ELSE 99
                 END,
                 source
