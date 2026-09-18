@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import json
-from datetime import date
 from html import escape
 from pathlib import Path
 from typing import Any
 
-import duckdb
 import pandas as pd
+
+from report_context import load_report_context
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = PROJECT_ROOT / "db" / "fitness.duckdb"
 REPORTS_DIR = PROJECT_ROOT / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -35,161 +34,50 @@ def _num(value: Any, decimals: int = 1, suffix: str = "") -> str:
     return f"{float(value):.{decimals}f}{suffix}"
 
 
-def _load_window() -> tuple[pd.DataFrame, pd.DataFrame, date | None]:
-    con = duckdb.connect(str(DB_PATH), read_only=True)
-    try:
-        # Anchor the report to the latest day for which the core daily sources
-        # all have data. This prevents a same-day Withings weigh-in from shifting
-        # the email window ahead of Google Health/Cronometer and making the email
-        # disagree with the attached coaching packet.
-        latest = con.execute(
-            """
-            WITH source_dates AS (
-                SELECT
-                    (SELECT MAX(date)
-                     FROM clean.body_composition
-                     WHERE weight_kg IS NOT NULL) AS body_date,
-                    (SELECT MAX(date)
-                     FROM clean.fitbit_daily
-                     WHERE steps IS NOT NULL
-                        OR sleep_hours IS NOT NULL
-                        OR resting_hr IS NOT NULL
-                        OR hrv IS NOT NULL) AS activity_date,
-                    (SELECT MAX(date)
-                     FROM clean.nutrition_daily
-                     WHERE calories IS NOT NULL
-                        OR protein_g IS NOT NULL) AS nutrition_date
-            )
-            SELECT CASE
-                WHEN body_date IS NULL
-                  OR activity_date IS NULL
-                  OR nutrition_date IS NULL
-                THEN NULL
-                ELSE LEAST(body_date, activity_date, nutrition_date)
-            END
-            FROM source_dates
-            """
-        ).fetchone()[0]
-        if latest is None:
-            return pd.DataFrame(), pd.DataFrame(), None
-
-        current = con.execute(
-            """
-            SELECT *
-            FROM analytics.daily_metrics
-            WHERE date BETWEEN (?::DATE - INTERVAL 6 DAY) AND ?::DATE
-            ORDER BY date
-            """,
-            [latest, latest],
-        ).fetchdf()
-        previous = con.execute(
-            """
-            SELECT *
-            FROM analytics.daily_metrics
-            WHERE date BETWEEN (?::DATE - INTERVAL 13 DAY) AND (?::DATE - INTERVAL 7 DAY)
-            ORDER BY date
-            """,
-            [latest, latest],
-        ).fetchdf()
-        return current, previous, latest
-    finally:
-        con.close()
-
-
-def _mean(frame: pd.DataFrame, column: str) -> float | None:
-    if frame.empty or column not in frame.columns:
-        return None
-    values = pd.to_numeric(frame[column], errors="coerce").dropna()
-    return None if values.empty else float(values.mean())
-
-
-def _sum(frame: pd.DataFrame, column: str) -> float | None:
-    if frame.empty or column not in frame.columns:
-        return None
-    values = pd.to_numeric(frame[column], errors="coerce").dropna()
-    return None if values.empty else float(values.sum())
-
-
-def _latest(frame: pd.DataFrame, column: str) -> float | None:
-    if frame.empty or column not in frame.columns:
-        return None
-    values = pd.to_numeric(frame[column], errors="coerce").dropna()
-    return None if values.empty else float(values.iloc[-1])
-
-
-def _metrics(current: pd.DataFrame, previous: pd.DataFrame) -> dict[str, Any]:
-    current_weight = _mean(current, "weight_kg")
-    previous_weight = _mean(previous, "weight_kg")
-    current_fat = _mean(current, "fat_mass_kg")
-    previous_fat = _mean(previous, "fat_mass_kg")
-
-    return {
-        "latest_weight": _latest(current, "weight_kg"),
-        "avg_weight": current_weight,
-        "weight_change_vs_prior_7d": (
-            current_weight - previous_weight
-            if current_weight is not None and previous_weight is not None
-            else None
-        ),
-        "avg_fat_mass": current_fat,
-        "fat_mass_change_vs_prior_7d": (
-            current_fat - previous_fat
-            if current_fat is not None and previous_fat is not None
-            else None
-        ),
-        "avg_calories": _mean(current, "calories"),
-        "avg_protein": _mean(current, "protein_g"),
-        "avg_steps": _mean(current, "steps"),
-        "avg_sleep": _mean(current, "sleep_hours"),
-        "avg_rhr": _mean(current, "resting_hr"),
-        "avg_hrv": _mean(current, "hrv"),
-        "workouts": _sum(current, "workout_count"),
-    }
-
-
-def _observations(metrics: dict[str, Any], status: str) -> list[str]:
+def _observations(weekly: dict[str, Any], status: str) -> list[str]:
     if status == "stale":
-        return [
-            "Current source data is too stale for a trustworthy weekly coaching interpretation."
-        ]
+        return ["Current source data is too stale for a trustworthy weekly coaching interpretation."]
 
     observations: list[str] = []
-    weight_change = metrics.get("weight_change_vs_prior_7d")
-    if weight_change is not None:
+    if weekly.get("weight_delta") is not None:
         observations.append(
-            f"Seven-day average weight changed by {weight_change:+.2f} kg versus the prior seven days."
+            f"Seven-day average weight changed by {weekly['weight_delta']:+.2f} kg versus the prior seven days."
         )
-
-    fat_change = metrics.get("fat_mass_change_vs_prior_7d")
-    if fat_change is not None:
+    if weekly.get("fat_delta") is not None:
         observations.append(
-            f"Seven-day average fat mass changed by {fat_change:+.2f} kg versus the prior seven days."
+            f"Seven-day average fat mass changed by {weekly['fat_delta']:+.2f} kg versus the prior seven days."
         )
-
-    if metrics.get("avg_steps") is not None:
-        observations.append(f"Average daily steps: {metrics['avg_steps']:.0f}.")
-    if metrics.get("avg_sleep") is not None:
-        observations.append(f"Average sleep: {metrics['avg_sleep']:.1f} hours/night.")
-    if metrics.get("workouts") is not None:
-        observations.append(f"Workouts recorded in the seven-day window: {metrics['workouts']:.0f}.")
-
+    if weekly.get("recent_steps") is not None:
+        observations.append(f"Average daily steps: {weekly['recent_steps']:.0f}.")
+    if weekly.get("recent_sleep") is not None:
+        observations.append(f"Average sleep: {weekly['recent_sleep']:.1f} hours/night.")
+    if weekly.get("recent_workouts") is not None:
+        observations.append(f"Workouts recorded in the seven-day window: {weekly['recent_workouts']:.0f}.")
     return observations or ["Not enough current data was available for additional observations."]
 
 
-def _review_items(metrics: dict[str, Any], freshness: dict[str, Any]) -> list[str]:
+def _review_items(
+    weekly: dict[str, Any], coverage: dict[str, Any], freshness: dict[str, Any]
+) -> list[str]:
     status = freshness.get("overall_status", "unknown")
     if status == "stale":
         return ["Restore current source syncing before using the coaching recommendations."]
 
     items: list[str] = []
-    checks = freshness.get("checks", {})
-    for name, detail in checks.items():
+    for name, detail in freshness.get("checks", {}).items():
         if detail.get("status") != "fresh":
-            items.append(f"Review {name.replace('_', ' ')} data freshness ({detail.get('status', 'unknown')}).")
+            items.append(
+                f"Review {name.replace('_', ' ')} data freshness ({detail.get('status', 'unknown')})."
+            )
 
-    if metrics.get("avg_calories") is None or metrics.get("avg_protein") is None:
+    if coverage.get("confidence") == "LOW":
+        items.append("Data coverage is low; avoid changing the plan from this week alone.")
+    elif coverage.get("confidence") == "MEDIUM":
+        items.append("Data coverage is moderate; interpret smaller week-to-week changes cautiously.")
+
+    if weekly.get("recent_calories") is None or weekly.get("recent_protein") is None:
         items.append("Nutrition coverage is incomplete; review the Google Health/Cronometer sync.")
-    if metrics.get("workouts") is None:
+    if weekly.get("recent_workouts") is None:
         items.append("Training coverage is incomplete; review the Hevy sync.")
 
     if not items:
@@ -197,10 +85,50 @@ def _review_items(metrics: dict[str, Any], freshness: dict[str, Any]) -> list[st
     return items[:4]
 
 
+def _coverage_rows(coverage: dict[str, Any]) -> list[tuple[str, str]]:
+    return [
+        (
+            "Coverage confidence",
+            f"{coverage.get('confidence', 'UNKNOWN')} (coverage-based; not device accuracy)",
+        ),
+        ("Body composition", f"{coverage.get('body_composition_days', 0)}/7 days"),
+        ("Nutrition", f"{coverage.get('nutrition_days', 0)}/7 days"),
+        ("Steps", f"{coverage.get('steps_days', 0)}/7 days"),
+        ("Sleep", f"{coverage.get('sleep_days', 0)}/7 days"),
+        ("Recovery (RHR + HRV)", f"{coverage.get('recovery_days', 0)}/7 days"),
+        ("Training", f"{coverage.get('workouts', 0)} workouts recorded"),
+    ]
+
+
+def _trend_rows(trend: dict[str, Any]) -> list[tuple[str, str]]:
+    return [
+        ("Weight change: latest 7d avg vs first 7d avg", _num(trend.get("weight_delta"), 2, " kg")),
+        ("Fat-mass change: latest 7d avg vs first 7d avg", _num(trend.get("fat_delta"), 2, " kg")),
+        ("Lean-mass change: latest 7d avg vs first 7d avg", _num(trend.get("lean_delta"), 2, " kg")),
+        ("28-day average calories", _num(trend.get("avg_calories"), 0, " kcal/day")),
+        ("28-day average protein", _num(trend.get("avg_protein"), 0, " g/day")),
+        ("28-day average steps", _num(trend.get("avg_steps"), 0, "/day")),
+        ("28-day average sleep", _num(trend.get("avg_sleep"), 1, " h/night")),
+        ("28-day workouts", _num(trend.get("workouts"), 0)),
+    ]
+
+
+def _strength_lines(strength_4w: list[dict[str, Any]]) -> list[str]:
+    if not strength_4w:
+        return ["Not enough repeated lift observations in the four-week window."]
+    return [
+        f"{item['label']}: {item['change_e1rm']:+.1f} kg e1RM ({item['direction']}; {item['observations']} weekly observations)"
+        for item in strength_4w
+    ]
+
+
 def _build_text(
-    latest_date: date | None,
+    latest_date,
     status: str,
-    metrics: dict[str, Any],
+    weekly: dict[str, Any],
+    coverage: dict[str, Any],
+    trend: dict[str, Any],
+    strength_4w: list[dict[str, Any]],
     observations: list[str],
     review_items: list[str],
 ) -> str:
@@ -211,21 +139,30 @@ def _build_text(
         f"Data status: {status.upper()}",
         f"Latest complete analysis date: {latest_date.isoformat() if latest_date else 'n/a'}",
         "",
-        f"Latest weight in reporting window: {_num(metrics.get('latest_weight'), 2, ' kg')}",
-        f"7-day average weight: {_num(metrics.get('avg_weight'), 2, ' kg')}",
-        f"Weight change vs prior 7d: {_num(metrics.get('weight_change_vs_prior_7d'), 2, ' kg')}",
-        f"7-day average fat mass: {_num(metrics.get('avg_fat_mass'), 2, ' kg')}",
-        f"Fat-mass change vs prior 7d: {_num(metrics.get('fat_mass_change_vs_prior_7d'), 2, ' kg')}",
-        f"Average calories: {_num(metrics.get('avg_calories'), 0, ' kcal/day')}",
-        f"Average protein: {_num(metrics.get('avg_protein'), 0, ' g/day')}",
-        f"Average steps: {_num(metrics.get('avg_steps'), 0, '/day')}",
-        f"Average sleep: {_num(metrics.get('avg_sleep'), 1, ' h/night')}",
-        f"Average resting HR: {_num(metrics.get('avg_rhr'), 1, ' bpm')}",
-        f"Average HRV: {_num(metrics.get('avg_hrv'), 1, ' ms')}",
-        f"Workouts: {_num(metrics.get('workouts'), 0)}",
+        "7-Day Summary",
+        "-------------",
+        f"Latest weight in reporting window: {_num(weekly.get('latest_weight'), 2, ' kg')}",
+        f"7-day average weight: {_num(weekly.get('recent_weight'), 2, ' kg')}",
+        f"Weight change vs prior 7d: {_num(weekly.get('weight_delta'), 2, ' kg')}",
+        f"7-day average fat mass: {_num(weekly.get('recent_fat'), 2, ' kg')}",
+        f"Fat-mass change vs prior 7d: {_num(weekly.get('fat_delta'), 2, ' kg')}",
+        f"Average calories: {_num(weekly.get('recent_calories'), 0, ' kcal/day')}",
+        f"Average protein: {_num(weekly.get('recent_protein'), 0, ' g/day')}",
+        f"Average steps: {_num(weekly.get('recent_steps'), 0, '/day')}",
+        f"Average sleep: {_num(weekly.get('recent_sleep'), 1, ' h/night')}",
+        f"Average resting HR: {_num(weekly.get('recent_rhr'), 1, ' bpm')}",
+        f"Average HRV: {_num(weekly.get('recent_hrv'), 1, ' ms')}",
+        f"Workouts: {_num(weekly.get('recent_workouts'), 0)}",
         "",
-        "Observations:",
+        "Data Quality",
+        "------------",
     ]
+    lines.extend(f"{label}: {value}" for label, value in _coverage_rows(coverage))
+    lines.extend(["", "4-Week Context", "--------------"])
+    lines.extend(f"{label}: {value}" for label, value in _trend_rows(trend))
+    lines.extend(["", "4-Week Strength Context", "-----------------------"])
+    lines.extend(f"- {item}" for item in _strength_lines(strength_4w))
+    lines.extend(["", "Observations:"])
     lines.extend(f"- {item}" for item in observations)
     lines.extend(["", "Items to review:"])
     lines.extend(f"- {item}" for item in review_items)
@@ -233,10 +170,23 @@ def _build_text(
     return "\n".join(lines)
 
 
+def _html_table(rows: list[tuple[str, str]]) -> str:
+    return "".join(
+        "<tr>"
+        f"<td style='padding:6px 10px;border:1px solid #ddd'><strong>{escape(label)}</strong></td>"
+        f"<td style='padding:6px 10px;border:1px solid #ddd'>{escape(value)}</td>"
+        "</tr>"
+        for label, value in rows
+    )
+
+
 def _build_html(
-    latest_date: date | None,
+    latest_date,
     status: str,
-    metrics: dict[str, Any],
+    weekly: dict[str, Any],
+    coverage: dict[str, Any],
+    trend: dict[str, Any],
+    strength_4w: list[dict[str, Any]],
     observations: list[str],
     review_items: list[str],
 ) -> str:
@@ -246,43 +196,44 @@ def _build_html(
         "stale": "Current source data is too stale for a trustworthy coaching interpretation.",
     }.get(status, "Freshness could not be fully determined.")
 
-    rows = [
+    summary_rows = [
         ("Latest complete analysis date", latest_date.isoformat() if latest_date else "n/a"),
-        ("Latest weight in reporting window", _num(metrics.get("latest_weight"), 2, " kg")),
-        ("7-day average weight", _num(metrics.get("avg_weight"), 2, " kg")),
-        ("Weight change vs prior 7d", _num(metrics.get("weight_change_vs_prior_7d"), 2, " kg")),
-        ("7-day average fat mass", _num(metrics.get("avg_fat_mass"), 2, " kg")),
-        ("Fat-mass change vs prior 7d", _num(metrics.get("fat_mass_change_vs_prior_7d"), 2, " kg")),
-        ("Average calories", _num(metrics.get("avg_calories"), 0, " kcal/day")),
-        ("Average protein", _num(metrics.get("avg_protein"), 0, " g/day")),
-        ("Average steps", _num(metrics.get("avg_steps"), 0, "/day")),
-        ("Average sleep", _num(metrics.get("avg_sleep"), 1, " h/night")),
-        ("Average resting HR", _num(metrics.get("avg_rhr"), 1, " bpm")),
-        ("Average HRV", _num(metrics.get("avg_hrv"), 1, " ms")),
-        ("Workouts", _num(metrics.get("workouts"), 0)),
+        ("Latest weight in reporting window", _num(weekly.get("latest_weight"), 2, " kg")),
+        ("7-day average weight", _num(weekly.get("recent_weight"), 2, " kg")),
+        ("Weight change vs prior 7d", _num(weekly.get("weight_delta"), 2, " kg")),
+        ("7-day average fat mass", _num(weekly.get("recent_fat"), 2, " kg")),
+        ("Fat-mass change vs prior 7d", _num(weekly.get("fat_delta"), 2, " kg")),
+        ("Average calories", _num(weekly.get("recent_calories"), 0, " kcal/day")),
+        ("Average protein", _num(weekly.get("recent_protein"), 0, " g/day")),
+        ("Average steps", _num(weekly.get("recent_steps"), 0, "/day")),
+        ("Average sleep", _num(weekly.get("recent_sleep"), 1, " h/night")),
+        ("Average resting HR", _num(weekly.get("recent_rhr"), 1, " bpm")),
+        ("Average HRV", _num(weekly.get("recent_hrv"), 1, " ms")),
+        ("Workouts", _num(weekly.get("recent_workouts"), 0)),
     ]
 
-    table_rows = "".join(
-        "<tr>"
-        f"<td style='padding:6px 10px;border:1px solid #ddd'><strong>{escape(label)}</strong></td>"
-        f"<td style='padding:6px 10px;border:1px solid #ddd'>{escape(value)}</td>"
-        "</tr>"
-        for label, value in rows
-    )
     observations_html = "".join(f"<li>{escape(item)}</li>" for item in observations)
     review_html = "".join(f"<li>{escape(item)}</li>" for item in review_items)
+    strength_html = "".join(f"<li>{escape(item)}</li>" for item in _strength_lines(strength_4w))
 
     return f"""<!DOCTYPE html>
 <html>
   <body style="font-family:Arial,sans-serif;line-height:1.5;color:#222;">
     <h2>Weekly Coaching Summary</h2>
     <p><strong>Data status: {escape(status.upper())}</strong> — {escape(status_message)}</p>
-    <table style="border-collapse:collapse;margin-bottom:18px;">{table_rows}</table>
+    <h3>7-Day Summary</h3>
+    <table style="border-collapse:collapse;margin-bottom:18px;">{_html_table(summary_rows)}</table>
+    <h3>Data Quality</h3>
+    <table style="border-collapse:collapse;margin-bottom:18px;">{_html_table(_coverage_rows(coverage))}</table>
+    <h3>4-Week Context</h3>
+    <table style="border-collapse:collapse;margin-bottom:18px;">{_html_table(_trend_rows(trend))}</table>
+    <h3>4-Week Strength Context</h3>
+    <ul>{strength_html}</ul>
     <h3>Observations</h3>
     <ul>{observations_html}</ul>
     <h3>Items to review</h3>
     <ul>{review_html}</ul>
-    <p style="color:#666;font-size:0.9em;">Generated automatically from the fitness-dashboard analytics database.</p>
+    <p style="color:#666;font-size:0.9em;">Coverage confidence reflects completeness of the reporting window, not device measurement accuracy. Generated automatically from the fitness-dashboard analytics database.</p>
   </body>
 </html>
 """
@@ -291,13 +242,36 @@ def _build_html(
 def main() -> None:
     freshness = _freshness()
     status = freshness.get("overall_status", "unknown")
-    current, previous, latest_date = _load_window()
-    metrics = _metrics(current, previous)
-    observations = _observations(metrics, status)
-    review_items = _review_items(metrics, freshness)
+    context = load_report_context()
+    latest_date = context.get("analysis_end_date")
+    weekly = context.get("weekly", {})
+    coverage = context.get("coverage", {})
+    trend = context.get("trend_4w", {})
+    strength_4w = context.get("strength_4w", [])
 
-    text = _build_text(latest_date, status, metrics, observations, review_items)
-    html = _build_html(latest_date, status, metrics, observations, review_items)
+    observations = _observations(weekly, status)
+    review_items = _review_items(weekly, coverage, freshness)
+
+    text = _build_text(
+        latest_date,
+        status,
+        weekly,
+        coverage,
+        trend,
+        strength_4w,
+        observations,
+        review_items,
+    )
+    html = _build_html(
+        latest_date,
+        status,
+        weekly,
+        coverage,
+        trend,
+        strength_4w,
+        observations,
+        review_items,
+    )
 
     OUTPUT_TXT.write_text(text, encoding="utf-8")
     OUTPUT_HTML.write_text(html, encoding="utf-8")
