@@ -13,6 +13,7 @@ SOURCE_FILES = {
     "weekly_report": REPORTS_DIR / "weekly_coaching_report.txt",
     "strength_adjusted": REPORTS_DIR / "strength_adjusted_coaching.txt",
     "calorie_recommendation": REPORTS_DIR / "adaptive_calorie_recommendation.txt",
+    "lean_mass_preservation": REPORTS_DIR / "lean_mass_preservation.txt",
     "fast_decision": REPORTS_DIR / "should_i_fast.txt",
     "strength_analysis": REPORTS_DIR / "strength_progress_analysis.txt",
 }
@@ -91,6 +92,7 @@ def main() -> None:
     weekly_report = read_text(SOURCE_FILES["weekly_report"])
     strength_adjusted = read_text(SOURCE_FILES["strength_adjusted"])
     calorie_reco = read_text(SOURCE_FILES["calorie_recommendation"])
+    lean_mass_report = read_text(SOURCE_FILES["lean_mass_preservation"])
     fast_decision = read_text(SOURCE_FILES["fast_decision"])
     strength_analysis = read_text(SOURCE_FILES["strength_analysis"])
 
@@ -114,6 +116,11 @@ def main() -> None:
     calorie_action = extract_section_by_heading_lines(calorie_reco, "Recommendation")
     calorie_why = extract_section_by_heading_lines(calorie_reco, "Why")
 
+    lean_personal_trend = extract_section_by_heading_lines(lean_mass_report, "Personal Trend")
+    lean_interpretation = extract_section_by_heading_lines(lean_mass_report, "Interpretation")
+    lean_suggestions = extract_section_by_heading_lines(lean_mass_report, "Suggestions")
+    lean_method = extract_section_by_heading_lines(lean_mass_report, "Method Note")
+
     fast_decision_section = extract_section_by_heading_lines(fast_decision, "Decision")
     fast_reasons_against = extract_section_by_heading_lines(fast_decision, "Reasons Against")
     fast_reasons_for = extract_section_by_heading_lines(fast_decision, "Reasons For")
@@ -121,7 +128,9 @@ def main() -> None:
     latest_strength_snapshot = extract_section_by_heading_lines(strength_analysis, "Latest Weekly Snapshot")
 
     combined_focus_items = dedupe_keep_order(
-        split_bullets(next_week_focus) + split_bullets(strength_next)
+        split_bullets(next_week_focus)
+        + split_bullets(strength_next)
+        + split_bullets(lean_suggestions)
     )
 
     lines: list[str] = []
@@ -152,6 +161,31 @@ def main() -> None:
     lines.append("4-Week Strength Context")
     lines.append("-----------------------")
     lines.append(four_week_strength if four_week_strength else "No four-week strength context available.")
+    lines.append("")
+
+    lines.append("Lean-Mass Preservation")
+    lines.append("----------------------")
+    if lean_personal_trend:
+        lines.append("Personal Trend")
+        lines.append("--------------")
+        lines.append(lean_personal_trend)
+        lines.append("")
+    if lean_interpretation:
+        lines.append("Interpretation")
+        lines.append("--------------")
+        lines.append(lean_interpretation)
+        lines.append("")
+    if lean_suggestions:
+        lines.append("Suggestions")
+        lines.append("-----------")
+        lines.append(lean_suggestions)
+        lines.append("")
+    if lean_method:
+        lines.append("Method Note")
+        lines.append("-----------")
+        lines.append(lean_method)
+    if not any([lean_personal_trend, lean_interpretation, lean_suggestions, lean_method]):
+        lines.append("No lean-mass preservation analysis available.")
     lines.append("")
 
     lines.append("Body Composition and Recovery")
