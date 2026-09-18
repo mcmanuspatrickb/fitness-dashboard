@@ -130,6 +130,12 @@ def _load_daily_frame(con: duckdb.DuckDBPyConnection, end_date: date) -> pd.Data
 
 
 def _strength_4w(end_date: date, path: Path = STRENGTH_CSV) -> list[dict[str, Any]]:
+    """Compare the best e1RM in the latest 4 weeks with the prior 4 weeks.
+
+    Using window maxima rather than first-vs-last weekly values prevents a deload,
+    technique session, or otherwise light first workout from looking like a huge
+    strength gain. The result is still a training-performance proxy, not a max test.
+    """
     if not path.exists():
         return []
 
@@ -145,37 +151,43 @@ def _strength_4w(end_date: date, path: Path = STRENGTH_CSV) -> list[dict[str, An
     frame = frame.copy()
     frame["week_start"] = pd.to_datetime(frame["week_start"], errors="coerce").dt.date
     frame["estimated_1rm"] = pd.to_numeric(frame["estimated_1rm"], errors="coerce")
-    start_date = end_date - timedelta(days=27)
-    frame = frame[
-        frame["week_start"].notna()
-        & frame["estimated_1rm"].notna()
-        & (frame["week_start"] >= start_date)
-        & (frame["week_start"] <= end_date)
-    ]
+    frame = frame[frame["week_start"].notna() & frame["estimated_1rm"].notna()].copy()
+
+    current_start = end_date - timedelta(days=27)
+    prior_end = current_start - timedelta(days=1)
+    prior_start = prior_end - timedelta(days=27)
+
+    current = frame[frame["week_start"].between(current_start, end_date)].copy()
+    prior = frame[frame["week_start"].between(prior_start, prior_end)].copy()
 
     results: list[dict[str, Any]] = []
-    for lift, sub in frame.groupby("target_lift"):
-        sub = sub.sort_values("week_start")
-        if len(sub) < 2:
+    lifts = sorted(set(current["target_lift"]).intersection(set(prior["target_lift"])))
+    for lift in lifts:
+        current_sub = current[current["target_lift"] == lift]
+        prior_sub = prior[prior["target_lift"] == lift]
+        if current_sub.empty or prior_sub.empty:
             continue
-        first = float(sub.iloc[0]["estimated_1rm"])
-        latest = float(sub.iloc[-1]["estimated_1rm"])
-        change = latest - first
+
+        current_best = float(current_sub["estimated_1rm"].max())
+        prior_best = float(prior_sub["estimated_1rm"].max())
+        change = current_best - prior_best
         if change > 1.0:
             direction = "up"
         elif change < -1.0:
             direction = "down"
         else:
             direction = "flat"
+
         results.append(
             {
                 "target_lift": str(lift),
                 "label": LIFT_LABELS.get(str(lift), str(lift).replace("_", " ").title()),
-                "first_e1rm": first,
-                "latest_e1rm": latest,
+                "current_best_e1rm": current_best,
+                "prior_best_e1rm": prior_best,
                 "change_e1rm": change,
                 "direction": direction,
-                "observations": int(len(sub)),
+                "current_observations": int(len(current_sub)),
+                "prior_observations": int(len(prior_sub)),
             }
         )
 
