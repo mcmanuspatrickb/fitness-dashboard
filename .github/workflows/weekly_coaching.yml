@@ -103,7 +103,11 @@ jobs:
               "source_refresh_status.txt",
               "weekly_coaching_stack_log.txt",
           ]
-          if status in {"fresh", "partial"}:
+
+          # Only attach prescriptive coaching output when all core data sources
+          # are fresh. PARTIAL and STALE emails remain descriptive/diagnostic so
+          # missing data cannot be mistaken for poor nutrition, recovery, or training.
+          if status == "fresh":
               attachment_names.insert(0, "weekly_coaching_packet.txt")
 
           attachments = [
