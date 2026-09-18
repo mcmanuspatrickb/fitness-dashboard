@@ -15,6 +15,7 @@ REPORTS_DIR = PROJECT_ROOT / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 FRESHNESS_JSON = REPORTS_DIR / "data_freshness.json"
+LEAN_MASS_REPORT = REPORTS_DIR / "lean_mass_preservation.txt"
 OUTPUT_TXT = REPORTS_DIR / "weekly_coaching_summary.txt"
 OUTPUT_HTML = REPORTS_DIR / "weekly_coaching_summary.html"
 
@@ -26,6 +27,15 @@ def _freshness() -> dict[str, Any]:
         return json.loads(FRESHNESS_JSON.read_text(encoding="utf-8"))
     except Exception:
         return {"overall_status": "unknown", "checks": {}}
+
+
+def _lean_mass_text() -> str:
+    if not LEAN_MASS_REPORT.exists():
+        return ""
+    try:
+        return LEAN_MASS_REPORT.read_text(encoding="utf-8").strip()
+    except Exception:
+        return ""
 
 
 def _num(value: Any, decimals: int = 1, suffix: str = "") -> str:
@@ -136,6 +146,7 @@ def _build_text(
     strength_4w: list[dict[str, Any]],
     observations: list[str],
     review_items: list[str],
+    lean_mass_text: str,
 ) -> str:
     lines = [
         "WEEKLY COACHING SUMMARY",
@@ -168,6 +179,8 @@ def _build_text(
     lines.extend(["", "4-Week Strength Context", "-----------------------"])
     lines.append("Compares the best e1RM in the latest four weeks with the best e1RM in the prior four weeks.")
     lines.extend(f"- {item}" for item in _strength_lines(strength_4w))
+    if lean_mass_text:
+        lines.extend(["", lean_mass_text])
     lines.extend(["", "Observations:"])
     lines.extend(f"- {item}" for item in observations)
     lines.extend(["", "Items to review:"])
@@ -195,6 +208,7 @@ def _build_html(
     strength_4w: list[dict[str, Any]],
     observations: list[str],
     review_items: list[str],
+    lean_mass_text: str,
 ) -> str:
     status_message = {
         "fresh": "All core freshness checks passed.",
@@ -221,6 +235,14 @@ def _build_html(
     observations_html = "".join(f"<li>{escape(item)}</li>" for item in observations)
     review_html = "".join(f"<li>{escape(item)}</li>" for item in review_items)
     strength_html = "".join(f"<li>{escape(item)}</li>" for item in _strength_lines(strength_4w))
+    lean_mass_html = ""
+    if lean_mass_text:
+        lean_mass_html = (
+            "<h3>Lean-Mass Preservation</h3>"
+            "<pre style='white-space:pre-wrap;font-family:Arial,sans-serif;line-height:1.5;background:#f7f7f7;padding:12px;border-radius:6px;'>"
+            + escape(lean_mass_text)
+            + "</pre>"
+        )
 
     return f"""<!DOCTYPE html>
 <html>
@@ -236,11 +258,12 @@ def _build_html(
     <h3>4-Week Strength Context</h3>
     <p>Compares the best e1RM in the latest four weeks with the best e1RM in the prior four weeks.</p>
     <ul>{strength_html}</ul>
+    {lean_mass_html}
     <h3>Observations</h3>
     <ul>{observations_html}</ul>
     <h3>Items to review</h3>
     <ul>{review_html}</ul>
-    <p style="color:#666;font-size:0.9em;">Coverage confidence reflects completeness of the reporting window, not device measurement accuracy. Strength e1RM remains a training-performance proxy rather than a max test. Generated automatically from the fitness-dashboard analytics database.</p>
+    <p style="color:#666;font-size:0.9em;">Coverage confidence reflects completeness of the reporting window, not device measurement accuracy. Strength e1RM remains a training-performance proxy rather than a max test. Withings lean mass is a BIA estimate and can move with hydration and glycogen. Generated automatically from the fitness-dashboard analytics database.</p>
   </body>
 </html>
 """
@@ -255,6 +278,7 @@ def main() -> None:
     coverage = context.get("coverage", {})
     trend = context.get("trend_4w", {})
     strength_4w = context.get("strength_4w", [])
+    lean_mass_text = _lean_mass_text()
 
     observations = _observations(weekly, status)
     review_items = _review_items(weekly, coverage, freshness)
@@ -268,6 +292,7 @@ def main() -> None:
         strength_4w,
         observations,
         review_items,
+        lean_mass_text,
     )
     html = _build_html(
         latest_date,
@@ -278,6 +303,7 @@ def main() -> None:
         strength_4w,
         observations,
         review_items,
+        lean_mass_text,
     )
 
     OUTPUT_TXT.write_text(text, encoding="utf-8")
