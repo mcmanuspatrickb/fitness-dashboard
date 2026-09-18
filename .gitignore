@@ -3,14 +3,18 @@
 __pycache__/
 *.pyc
 
-# Env
+# Env / secrets
 .env
+secrets/
+private/
 
 # Data
 data_raw/
 data_processed/
 *.csv
 *.db
+*.duckdb-wal
+*.duckdb.tmp
 
 # Outputs
 reports/
