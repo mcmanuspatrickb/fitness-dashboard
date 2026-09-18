@@ -114,7 +114,6 @@ def main() -> None:
             SELECT schema_name, index_name, sql
             FROM duckdb_indexes()
             WHERE database_name = 'src'
-              AND internal = FALSE
             ORDER BY schema_name, index_name
             """
         ).fetchall()
