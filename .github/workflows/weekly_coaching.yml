@@ -99,11 +99,13 @@ jobs:
           )
 
           attachment_names = [
-              "weekly_coaching_packet.txt",
               "data_freshness.txt",
               "source_refresh_status.txt",
               "weekly_coaching_stack_log.txt",
           ]
+          if status in {"fresh", "partial"}:
+              attachment_names.insert(0, "weekly_coaching_packet.txt")
+
           attachments = [
               reports_dir / name
               for name in attachment_names
