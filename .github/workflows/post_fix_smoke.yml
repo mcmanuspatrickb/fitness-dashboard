@@ -1,0 +1,33 @@
+name: Post-fix Smoke Test
+
+on:
+  push:
+    paths:
+      - ".github/workflows/post_fix_smoke.yml"
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install weekly dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r weekly_requirements.txt
+
+      - name: Compile changed scripts
+        run: |
+          python -m py_compile scripts/05_refresh_current_sources.py scripts/71_strength_progress_analysis.py
+
+      - name: Run strength analysis against seed database
+        run: |
+          python scripts/71_strength_progress_analysis.py
+          echo "--- identity mapping ---"
+          sed -n '/Tracked Exercise Identities/,/Latest Weekly Snapshot/p' reports/strength_progress_analysis.txt
