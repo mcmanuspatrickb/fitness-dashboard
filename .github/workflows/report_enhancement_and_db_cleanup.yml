@@ -1,6 +1,6 @@
 name: Report Enhancement and DB Cleanup
 
-# One-time validation workflow; remove after successful cleanup.
+# One-time validation workflow; remove after successful cleanup. Retry 3.
 on:
   push:
     paths:
