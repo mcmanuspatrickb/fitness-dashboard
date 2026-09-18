@@ -49,9 +49,11 @@ def main() -> None:
 
         source_columns = con.execute(
             """
-            SELECT table_schema, table_name, column_name
-            FROM src.information_schema.columns
-            ORDER BY table_schema, table_name, ordinal_position
+            SELECT schema_name, table_name, column_name
+            FROM duckdb_columns()
+            WHERE database_name = 'src'
+              AND internal = FALSE
+            ORDER BY schema_name, table_name, column_index
             """
         ).fetchall()
 
@@ -132,13 +134,15 @@ def main() -> None:
 
         remaining_sensitive = con.execute(
             """
-            SELECT table_schema, table_name, column_name
-            FROM information_schema.columns
-            WHERE lower(column_name) IN (
-                'access_token', 'refresh_token', 'client_secret',
-                'password', 'cookie', 'cookies', 'storage_state'
-            )
-            ORDER BY table_schema, table_name, column_name
+            SELECT schema_name, table_name, column_name
+            FROM duckdb_columns()
+            WHERE database_name = current_database()
+              AND internal = FALSE
+              AND lower(column_name) IN (
+                  'access_token', 'refresh_token', 'client_secret',
+                  'password', 'cookie', 'cookies', 'storage_state'
+              )
+            ORDER BY schema_name, table_name, column_name
             """
         ).fetchall()
 
