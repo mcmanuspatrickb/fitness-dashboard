@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -22,6 +23,7 @@ SOURCES = [
         "script": "12_sync_withings_persistent.py",
         "required_env": ["WITHINGS_DATABASE_URL"],
         "description": "Direct Withings measurements from the persistent database",
+        "max_attempts": 1,
     },
     {
         "name": "google_health",
@@ -32,14 +34,46 @@ SOURCES = [
             "GOOGLE_HEALTH_REFRESH_TOKEN",
         ],
         "description": "Google Health activity, recovery, sleep, and Cronometer nutrition",
+        "max_attempts": 4,
     },
     {
         "name": "hevy",
         "script": "15_ingest_hevy_current.py",
         "required_env": ["HEVY_API_KEY"],
         "description": "Current paginated Hevy workout history",
+        "max_attempts": 1,
     },
 ]
+
+TRANSIENT_ERROR_MARKERS = (
+    " 429 ",
+    "(429)",
+    '"code": 429',
+    " 500 ",
+    "(500)",
+    '"code": 500',
+    " 502 ",
+    "(502)",
+    '"code": 502',
+    " 503 ",
+    "(503)",
+    '"code": 503',
+    " 504 ",
+    "(504)",
+    '"code": 504',
+    "unavailable",
+    "temporarily unavailable",
+    "timeout",
+    "timed out",
+    "connection reset",
+    "connection aborted",
+    "remote disconnected",
+)
+
+
+def _is_transient_failure(stdout: str, stderr: str) -> bool:
+    text = f"{stdout}\n{stderr}".lower()
+    return any(marker in text for marker in TRANSIENT_ERROR_MARKERS)
 
 
 def run_source(source: dict) -> dict:
@@ -54,6 +88,8 @@ def run_source(source: dict) -> dict:
         "returncode": None,
         "stdout": "",
         "stderr": "",
+        "attempts": 0,
+        "retry_log": [],
     }
 
     if missing:
@@ -65,18 +101,38 @@ def run_source(source: dict) -> dict:
         result["stderr"] = f"Missing script: {script_path}"
         return result
 
-    completed = subprocess.run(
-        [sys.executable, str(script_path)],
-        cwd=str(PROJECT_ROOT),
-        capture_output=True,
-        text=True,
-        check=False,
-        env=os.environ.copy(),
-    )
-    result["returncode"] = completed.returncode
-    result["stdout"] = completed.stdout[-12000:]
-    result["stderr"] = completed.stderr[-12000:]
-    result["status"] = "success" if completed.returncode == 0 else "failed"
+    max_attempts = max(1, int(source.get("max_attempts", 1)))
+
+    for attempt in range(1, max_attempts + 1):
+        completed = subprocess.run(
+            [sys.executable, str(script_path)],
+            cwd=str(PROJECT_ROOT),
+            capture_output=True,
+            text=True,
+            check=False,
+            env=os.environ.copy(),
+        )
+
+        result["attempts"] = attempt
+        result["returncode"] = completed.returncode
+        result["stdout"] = completed.stdout[-12000:]
+        result["stderr"] = completed.stderr[-12000:]
+
+        if completed.returncode == 0:
+            result["status"] = "success"
+            return result
+
+        result["status"] = "failed"
+        transient = _is_transient_failure(completed.stdout, completed.stderr)
+        if not transient or attempt >= max_attempts:
+            return result
+
+        delay_seconds = min(60, 5 * (2 ** (attempt - 1)))
+        result["retry_log"].append(
+            f"Attempt {attempt} failed with a transient API/network error; retrying in {delay_seconds}s."
+        )
+        time.sleep(delay_seconds)
+
     return result
 
 
@@ -98,8 +154,12 @@ def main() -> None:
     for source in payload["sources"]:
         lines.append(f"{source['name']}: {source['status'].upper()}")
         lines.append(f"  {source['description']}")
+        if source["attempts"]:
+            lines.append(f"  Attempts: {source['attempts']}")
         if source["missing_env"]:
             lines.append("  Missing configuration: " + ", ".join(source["missing_env"]))
+        for retry_line in source.get("retry_log", []):
+            lines.append(f"  {retry_line}")
         if source["stdout"].strip():
             lines.append("  Output:")
             for line in source["stdout"].strip().splitlines()[-12:]:
