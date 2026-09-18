@@ -1,0 +1,5 @@
+duckdb==1.5.0
+pandas==3.0.1
+requests==2.32.5
+python-dotenv==1.2.2
+psycopg[binary]>=3.2,<4
