@@ -22,9 +22,36 @@ def main() -> None:
     con = duckdb.connect(str(DB_PATH))
 
     df = con.execute("""
-        WITH last_28 AS (
+        WITH source_dates AS (
+            SELECT
+                (SELECT MAX(date)
+                 FROM clean.body_composition
+                 WHERE weight_kg IS NOT NULL) AS body_date,
+                (SELECT MAX(date)
+                 FROM clean.fitbit_daily
+                 WHERE steps IS NOT NULL
+                    OR sleep_hours IS NOT NULL
+                    OR resting_hr IS NOT NULL
+                    OR hrv IS NOT NULL) AS activity_date,
+                (SELECT MAX(date)
+                 FROM clean.nutrition_daily
+                 WHERE calories IS NOT NULL
+                    OR protein_g IS NOT NULL) AS nutrition_date
+        ),
+        cutoff AS (
+            SELECT CASE
+                WHEN body_date IS NULL
+                  OR activity_date IS NULL
+                  OR nutrition_date IS NULL
+                THEN NULL
+                ELSE LEAST(body_date, activity_date, nutrition_date)
+            END AS analysis_end_date
+            FROM source_dates
+        ),
+        last_28 AS (
             SELECT
                 dm.date,
+                c.analysis_end_date,
                 dm.weight_kg,
                 dm.fat_mass_kg,
                 dm.lean_mass_kg,
@@ -35,37 +62,48 @@ def main() -> None:
                 f.resting_hr,
                 f.hrv
             FROM analytics.daily_metrics dm
+            CROSS JOIN cutoff c
             LEFT JOIN clean.fitbit_daily f
                 ON dm.date = f.date
-            WHERE dm.date >= CURRENT_DATE - 28
+            WHERE c.analysis_end_date IS NOT NULL
+              AND dm.date BETWEEN c.analysis_end_date - INTERVAL 27 DAY
+                              AND c.analysis_end_date
             ORDER BY dm.date
         ),
         recent_14 AS (
-            SELECT * FROM last_28 WHERE date >= CURRENT_DATE - 14
+            SELECT * FROM last_28
+            WHERE date BETWEEN analysis_end_date - INTERVAL 13 DAY
+                           AND analysis_end_date
         ),
         prior_14 AS (
             SELECT * FROM last_28
-            WHERE date < CURRENT_DATE - 14
-              AND date >= CURRENT_DATE - 28
+            WHERE date BETWEEN analysis_end_date - INTERVAL 27 DAY
+                           AND analysis_end_date - INTERVAL 14 DAY
         ),
         training_recent AS (
             SELECT
                 COUNT(*) AS workout_days_14,
-                SUM(workout_count) AS workouts_14,
-                AVG(total_volume) AS avg_training_volume_14
-            FROM clean.training_summary
-            WHERE date >= CURRENT_DATE - 14
+                SUM(ts.workout_count) AS workouts_14,
+                AVG(ts.total_volume) AS avg_training_volume_14
+            FROM clean.training_summary ts
+            CROSS JOIN cutoff c
+            WHERE c.analysis_end_date IS NOT NULL
+              AND ts.date BETWEEN c.analysis_end_date - INTERVAL 13 DAY
+                              AND c.analysis_end_date
         ),
         training_prior AS (
             SELECT
                 COUNT(*) AS workout_days_prev14,
-                SUM(workout_count) AS workouts_prev14,
-                AVG(total_volume) AS avg_training_volume_prev14
-            FROM clean.training_summary
-            WHERE date < CURRENT_DATE - 14
-              AND date >= CURRENT_DATE - 28
+                SUM(ts.workout_count) AS workouts_prev14,
+                AVG(ts.total_volume) AS avg_training_volume_prev14
+            FROM clean.training_summary ts
+            CROSS JOIN cutoff c
+            WHERE c.analysis_end_date IS NOT NULL
+              AND ts.date BETWEEN c.analysis_end_date - INTERVAL 27 DAY
+                              AND c.analysis_end_date - INTERVAL 14 DAY
         )
         SELECT
+            (SELECT MAX(analysis_end_date) FROM last_28) AS analysis_end_date,
             (SELECT AVG(weight_kg) FROM recent_14) AS recent_weight,
             (SELECT AVG(weight_kg) FROM prior_14) AS prior_weight,
 
@@ -99,8 +137,8 @@ def main() -> None:
 
     con.close()
 
-    if df.empty:
-        print("No data found.")
+    if df.empty or pd.isna(df.iloc[0]["analysis_end_date"]):
+        print("No complete reporting window found.")
         return
 
     row = df.iloc[0]
@@ -178,6 +216,8 @@ def main() -> None:
     lines = []
     lines.append("Should I Fast?")
     lines.append("==============")
+    lines.append("")
+    lines.append(f"Reporting window ends: {row['analysis_end_date']}")
     lines.append("")
     lines.append("14-Day Trend Check")
     lines.append("------------------")
