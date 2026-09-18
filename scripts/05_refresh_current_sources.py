@@ -35,9 +35,9 @@ SOURCES = [
     },
     {
         "name": "hevy",
-        "script": "15_ingest_hevy.py",
+        "script": "15_ingest_hevy_current.py",
         "required_env": ["HEVY_API_KEY"],
-        "description": "Hevy workout history",
+        "description": "Current paginated Hevy workout history",
     },
 ]
 
