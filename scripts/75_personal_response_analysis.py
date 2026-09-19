@@ -57,6 +57,7 @@ def load_daily() -> pd.DataFrame:
                 f.sleep_hours,
                 f.resting_hr,
                 f.hrv,
+                COALESCE(dm.fasting_state, 'normal') AS fasting_state,
                 COALESCE(t.workout_count, 0) AS workout_count
             FROM analytics.daily_metrics dm
             LEFT JOIN clean.body_composition b ON dm.date = b.date
@@ -69,6 +70,9 @@ def load_daily() -> pd.DataFrame:
     finally:
         con.close()
     frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
+    frame["fasting_state"] = (
+        frame["fasting_state"].fillna("normal").astype(str).str.strip().str.lower()
+    )
     return frame.dropna(subset=["date"])
 
 
@@ -87,6 +91,8 @@ def build_blocks(frame: pd.DataFrame) -> pd.DataFrame:
         nutrition_days = int(block[["calories", "protein_g"]].notna().all(axis=1).sum())
 
         if body_days >= MIN_BODY_DAYS and nutrition_days >= MIN_NUTRITION_DAYS:
+            fasting_state = block["fasting_state"].fillna("normal").astype(str).str.strip().str.lower()
+            fasting_days = int((~fasting_state.isin(["normal", ""])).sum())
             rows.append(
                 {
                     "start_date": start.date(),
@@ -96,6 +102,7 @@ def build_blocks(frame: pd.DataFrame) -> pd.DataFrame:
                     "activity_days": int(block["steps"].notna().sum()),
                     "sleep_days": int(block["sleep_hours"].notna().sum()),
                     "recovery_days": int(block[["resting_hr", "hrv"]].notna().all(axis=1).sum()),
+                    "fasting_days": fasting_days,
                     "weight_change_kg": _slope_change(block, "weight_kg"),
                     "fat_change_kg": _slope_change(block, "fat_mass_kg"),
                     "lean_change_kg": _slope_change(block, "lean_mass_kg"),
@@ -165,10 +172,15 @@ def main() -> None:
             (usable["fat_change_kg"] < 0)
             & (usable["lean_change_kg"] >= -0.30)
         ].copy()
-        training_active = blocks[
+
+        workout_mask = (
             pd.to_numeric(blocks["workouts"], errors="coerce").fillna(0)
             >= MIN_WORKOUTS_FOR_TRAINING_ACTIVE
-        ].copy()
+        )
+        normal_diet_mask = (
+            pd.to_numeric(blocks["fasting_days"], errors="coerce").fillna(0) == 0
+        )
+        training_active = blocks[workout_mask & normal_diet_mask].copy()
         active_usable = training_active.dropna(
             subset=["fat_change_kg", "lean_change_kg"]
         ).copy()
@@ -177,12 +189,37 @@ def main() -> None:
             & (active_usable["lean_change_kg"] >= -0.30)
         ].copy()
 
+        additional_needed = max(0, MIN_BLOCKS_FOR_ASSOCIATION - len(training_active))
+        evidence_status = (
+            "READY" if len(training_active) >= MIN_BLOCKS_FOR_ASSOCIATION else "BUILDING"
+        )
+
         lines.extend(
             [
                 f"Blocks with both fat and lean outcome estimates: {len(usable)}",
                 f"Blocks with fat down and BIA lean change >= -0.30 kg: {len(compatible)}",
-                f"Training-active blocks (>= {MIN_WORKOUTS_FOR_TRAINING_ACTIVE} resistance workouts / 14d): {len(training_active)}",
-                f"Training-active blocks compatible with the current goal: {len(active_compatible)}",
+                f"Training-active normal-diet blocks (>= {MIN_WORKOUTS_FOR_TRAINING_ACTIVE} resistance workouts / 14d; no fasting-intervention days): {len(training_active)}",
+                f"Training-active normal-diet blocks compatible with the current goal: {len(active_compatible)}",
+                "",
+                "Evidence Status",
+                "---------------",
+                f"Status: {evidence_status}",
+                f"Training-active comparable blocks: {len(training_active)}",
+                f"Minimum before personalized associations: {MIN_BLOCKS_FOR_ASSOCIATION}",
+                f"Additional comparable blocks needed: {additional_needed}",
+            ]
+        )
+        if evidence_status == "BUILDING":
+            lines.append(
+                "Personalized associations are withheld until the minimum evidence threshold is reached."
+            )
+        else:
+            lines.append(
+                "Exploratory personalized associations are available below; treat them as hypotheses to test, not prescriptions."
+            )
+
+        lines.extend(
+            [
                 "",
                 "All qualifying historical blocks",
                 "--------------------------------",
@@ -198,9 +235,9 @@ def main() -> None:
             lines.extend(
                 [
                     "",
-                    "Periods compatible with the current goal",
-                    "----------------------------------------",
-                    "These periods had declining BIA fat mass while BIA lean change was no worse than -0.30 kg across the 14-day trend window.",
+                    "Historical body-composition-compatible periods",
+                    "----------------------------------------------",
+                    "These periods had declining BIA fat mass while BIA lean change was no worse than -0.30 kg across the 14-day trend window. They are descriptive only and are not used for personalized coaching unless they also meet the training-active normal-diet criteria.",
                     f"Median calories: {_fmt(compatible['avg_calories'].median(), 0)} kcal/day",
                     f"Median protein: {_fmt(compatible['avg_protein_g'].median(), 0)} g/day",
                     f"Median steps: {_fmt(compatible['avg_steps'].median(), 0)} /day",
@@ -215,7 +252,7 @@ def main() -> None:
                     "",
                     "Training-active periods",
                     "-----------------------",
-                    "This is the more relevant cohort for a muscle-preservation goal because periods with little or no resistance training are excluded.",
+                    "This is the coaching-relevant cohort: at least two resistance workouts per 14 days and no fasting-intervention days in the block.",
                     f"Median calories: {_fmt(training_active['avg_calories'].median(), 0)} kcal/day",
                     f"Median protein: {_fmt(training_active['avg_protein_g'].median(), 0)} g/day",
                     f"Median steps: {_fmt(training_active['avg_steps'].median(), 0)} /day",
@@ -251,7 +288,7 @@ def main() -> None:
                 "",
                 "Exploratory associations",
                 "------------------------",
-                f"Associations below use only training-active periods (>= {MIN_WORKOUTS_FOR_TRAINING_ACTIVE} resistance workouts / 14d). Positive fat-loss correlation means higher values tended to accompany more BIA fat loss; positive lean-retention correlation means higher values tended to accompany better BIA lean retention.",
+                f"Associations use only training-active normal-diet periods. Positive fat-loss correlation means higher values tended to accompany more BIA fat loss; positive lean-retention correlation means higher values tended to accompany better BIA lean retention. Results are withheld unless at least {MIN_BLOCKS_FOR_ASSOCIATION} comparable blocks are available.",
             ]
         )
 
@@ -289,7 +326,8 @@ def main() -> None:
             "-----------",
             f"Blocks are non-overlapping {BLOCK_DAYS}-day calendar periods and require at least {MIN_BODY_DAYS} body-composition days and {MIN_NUTRITION_DAYS} complete nutrition days.",
             "Body outcomes use a within-block linear trend rather than first/last single readings to reduce day-to-day noise.",
-            f"Associations are reported only with at least {MIN_BLOCKS_FOR_ASSOCIATION} training-active comparable blocks and use Spearman rank correlation. They should be treated as hypotheses to test, not prescriptions.",
+            "Fasting-intervention blocks are retained in the historical CSV for auditability but excluded from the training-active cohort used for personalized associations.",
+            f"Associations are reported only with at least {MIN_BLOCKS_FOR_ASSOCIATION} training-active normal-diet comparable blocks and use Spearman rank correlation. They should be treated as hypotheses to test, not prescriptions.",
         ]
     )
 
