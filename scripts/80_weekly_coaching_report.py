@@ -44,23 +44,20 @@ def main() -> None:
     hrv_delta = row.get("hrv_delta")
     sleep_delta = row.get("sleep_delta")
 
-    score = 0
     notes: list[str] = []
     next_week: list[str] = []
 
     if fat_delta is not None and fat_delta < 0:
-        score += 2
-        notes.append("Fat mass moved in the right direction.")
+        notes.append("Fat mass moved in the desired direction.")
     elif weight_delta is not None and weight_delta < 0:
-        score += 1
-        notes.append("Weight is down, though body composition trend matters more than scale alone.")
+        notes.append("Weight is down, though body-composition trend matters more than scale weight alone.")
 
     if lean_delta is not None and lean_delta >= 0:
-        score += 2
-        notes.append("Lean mass held steady or improved.")
+        notes.append("BIA-estimated lean mass held steady or improved this week.")
     elif lean_delta is not None and lean_delta < -0.25:
-        score -= 2
-        notes.append("BIA-estimated lean mass appears to be slipping; cross-check the multi-week trend against strength before treating it as muscle loss.")
+        notes.append(
+            "BIA-estimated lean mass appears to be slipping; cross-check the multi-week trend against strength before treating it as muscle loss."
+        )
         next_week.append("Prioritize the lean-mass preservation protein target and protect training quality.")
 
     recent_protein = row.get("recent_protein")
@@ -74,14 +71,13 @@ def main() -> None:
         and protein_target_low is not None
         and float(recent_protein) >= protein_target_low
     ):
-        score += 2
         notes.append("Protein is within the current lean-mass preservation working range.")
     elif recent_protein is not None and recent_protein >= 110:
-        score += 1
-        notes.append("Protein is a reasonable baseline, but it is below the current lean-mass preservation working range.")
+        notes.append(
+            "Protein is a reasonable baseline, but it is below the current lean-mass preservation working range."
+        )
         next_week.append("Use the lean-mass preservation section for the personalized protein target.")
     elif recent_protein is not None:
-        score -= 2
         notes.append("Protein is low for a strength-focused fat-loss phase.")
         next_week.append("Use the lean-mass preservation section for the personalized protein target.")
     else:
@@ -89,68 +85,48 @@ def main() -> None:
 
     recent_sleep = row.get("recent_sleep")
     if recent_sleep is not None and recent_sleep >= 7:
-        score += 1
-        notes.append("Sleep is supportive.")
+        notes.append("Sleep is supportive of training recovery.")
     elif recent_sleep is not None and recent_sleep < 6.5:
-        score -= 1
         notes.append("Sleep is limiting recovery.")
-        next_week.append("Protect sleep; aim for 7+ hours.")
+        next_week.append("Protect sleep; aim for 7+ hours where practical.")
 
     if rhr_delta is not None and rhr_delta > 3:
-        score -= 2
         notes.append("Resting HR is elevated versus the prior week.")
-        next_week.append("Reduce overall stress load and avoid aggressive dieting.")
+        next_week.append("Reduce overall stress load and avoid making the calorie deficit more aggressive.")
     elif row.get("recent_rhr") is not None and row["recent_rhr"] <= 72:
-        score += 1
-        notes.append("Resting HR looks calm.")
+        notes.append("Resting HR is relatively calm this week.")
 
     if hrv_delta is not None and hrv_delta > 1:
-        score += 1
         notes.append("HRV improved versus the prior week.")
     elif hrv_delta is not None and hrv_delta < -2:
-        score -= 1
         notes.append("HRV fell versus the prior week.")
         next_week.append("Watch recovery and avoid stacking too much stress.")
 
     recent_workouts = row.get("recent_workouts")
     if recent_workouts is not None and recent_workouts >= 2:
-        score += 2
-        notes.append("Training frequency matches your realistic 2x/week plan.")
+        notes.append("Training frequency matches the planned 2x/week resistance schedule.")
     elif recent_workouts is not None and recent_workouts == 1:
-        score -= 1
-        notes.append("Training frequency fell below your normal 2x/week target.")
+        notes.append("Training frequency fell below the normal 2x/week target.")
         next_week.append("Hit both planned lifting sessions this week.")
     elif recent_workouts is not None:
-        score -= 2
         notes.append("No meaningful lifting sessions were captured this week.")
-        next_week.append("Get back to your 2 planned lifting sessions.")
+        next_week.append("Get back to the 2 planned lifting sessions.")
     else:
         notes.append("Training data is unavailable for this reporting window.")
 
     recent_steps = row.get("recent_steps")
     if recent_steps is not None and recent_steps >= 7000:
-        score += 1
-        notes.append("Baseline activity is good.")
+        notes.append("Baseline daily movement is solid.")
     elif recent_steps is not None:
-        next_week.append("Keep daily movement up; target 7k+ steps.")
+        next_week.append("Keep daily movement up; target roughly 7k+ steps.")
 
     recent_calories = row.get("recent_calories")
     if recent_calories is not None and recent_calories < 1500:
-        score -= 1
-        notes.append("Calories may be too low for a strength-focused recomposition phase.")
-        next_week.append("Do not under-fuel the week if strength is the priority.")
-
-    if score >= 6:
-        grade = "A"
-    elif score >= 3:
-        grade = "B"
-    elif score >= 0:
-        grade = "C"
-    else:
-        grade = "D"
+        notes.append("Calories may be too low for a strength-focused fat-loss phase.")
+        next_week.append("Avoid under-fuelling the week if preserving training performance is the priority.")
 
     if not next_week:
-        next_week.append("Stay steady. You do not need a dramatic change next week.")
+        next_week.append("Stay steady; no major plan change is indicated from this week alone.")
 
     deduped: list[str] = []
     seen: set[str] = set()
@@ -246,13 +222,8 @@ def main() -> None:
         lines.append("Not enough comparable lift observations across the latest and prior four-week windows.")
     lines.append("")
 
-    lines.append("Overall Grade")
-    lines.append("-------------")
-    lines.append(f"{grade} (score {score})")
-    lines.append("")
-
-    lines.append("What Went Well / What Needs Work")
-    lines.append("--------------------------------")
+    lines.append("Weekly Interpretation")
+    lines.append("---------------------")
     for note in notes:
         lines.append(f"- {note}")
     lines.append("")
@@ -266,8 +237,8 @@ def main() -> None:
     lines.append("Coach's View")
     lines.append("------------")
     lines.append(
-        "Because your current goal is strength + sustainable fat loss, the best week is not the one with the fastest scale drop; "
-        "it is the one where fat trends down while lean mass, recovery, and training all stay supported within your real 2x/week lifting schedule."
+        "For a fat-loss phase focused on preserving useful lean tissue, the best week is not the one with the fastest scale drop; "
+        "it is the one where fat trends down while strength, recovery, protein intake, and training quality remain supported."
     )
 
     OUT_PATH.write_text("\n".join(lines), encoding="utf-8")
