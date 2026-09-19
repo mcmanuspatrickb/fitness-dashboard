@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import duckdb
-import numpy as np
 import pandas as pd
 
 
@@ -17,7 +16,6 @@ OUT_TXT = REPORTS_DIR / "personal_response_analysis.txt"
 BLOCK_DAYS = 14
 MIN_BODY_DAYS = 6
 MIN_NUTRITION_DAYS = 10
-MIN_ACTIVITY_DAYS = 8
 MIN_BLOCKS_FOR_ASSOCIATION = 8
 
 
@@ -30,10 +28,10 @@ def _slope_change(frame: pd.DataFrame, column: str) -> float | None:
     x = (local["date"] - local["date"].min()).dt.days.astype(float)
     y = local[column].astype(float)
     x_centered = x - x.mean()
-    denom = float((x_centered ** 2).sum())
-    if denom <= 0:
+    denominator = float((x_centered ** 2).sum())
+    if denominator <= 0:
         return None
-    slope = float((x_centered * (y - y.mean())).sum() / denom)
+    slope = float((x_centered * (y - y.mean())).sum() / denominator)
     return slope * (BLOCK_DAYS - 1)
 
 
@@ -69,8 +67,7 @@ def load_daily() -> pd.DataFrame:
         ).fetchdf()
     finally:
         con.close()
-    if not frame.empty:
-        frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
+    frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
     return frame.dropna(subset=["date"])
 
 
@@ -78,19 +75,15 @@ def build_blocks(frame: pd.DataFrame) -> pd.DataFrame:
     if frame.empty:
         return pd.DataFrame()
 
-    first_date = frame["date"].min().normalize()
-    last_date = frame["date"].max().normalize()
     rows: list[dict] = []
-    start = first_date
+    start = frame["date"].min().normalize()
+    last_date = frame["date"].max().normalize()
 
     while start + pd.Timedelta(days=BLOCK_DAYS - 1) <= last_date:
         end = start + pd.Timedelta(days=BLOCK_DAYS - 1)
         block = frame[frame["date"].between(start, end)].copy()
         body_days = int(block["weight_kg"].notna().sum())
         nutrition_days = int(block[["calories", "protein_g"]].notna().all(axis=1).sum())
-        activity_days = int(block["steps"].notna().sum())
-        sleep_days = int(block["sleep_hours"].notna().sum())
-        recovery_days = int(block[["resting_hr", "hrv"]].notna().all(axis=1).sum())
 
         if body_days >= MIN_BODY_DAYS and nutrition_days >= MIN_NUTRITION_DAYS:
             rows.append(
@@ -99,9 +92,9 @@ def build_blocks(frame: pd.DataFrame) -> pd.DataFrame:
                     "end_date": end.date(),
                     "body_days": body_days,
                     "nutrition_days": nutrition_days,
-                    "activity_days": activity_days,
-                    "sleep_days": sleep_days,
-                    "recovery_days": recovery_days,
+                    "activity_days": int(block["steps"].notna().sum()),
+                    "sleep_days": int(block["sleep_hours"].notna().sum()),
+                    "recovery_days": int(block[["resting_hr", "hrv"]].notna().all(axis=1).sum()),
                     "weight_change_kg": _slope_change(block, "weight_kg"),
                     "fat_change_kg": _slope_change(block, "fat_mass_kg"),
                     "lean_change_kg": _slope_change(block, "lean_mass_kg"),
@@ -111,37 +104,44 @@ def build_blocks(frame: pd.DataFrame) -> pd.DataFrame:
                     "avg_sleep_h": _mean(block, "sleep_hours"),
                     "avg_rhr": _mean(block, "resting_hr"),
                     "avg_hrv": _mean(block, "hrv"),
-                    "workouts": float(pd.to_numeric(block["workout_count"], errors="coerce").fillna(0).sum()),
+                    "workouts": float(
+                        pd.to_numeric(block["workout_count"], errors="coerce")
+                        .fillna(0)
+                        .sum()
+                    ),
                 }
             )
         start += pd.Timedelta(days=BLOCK_DAYS)
 
-    out = pd.DataFrame(rows)
-    if out.empty:
-        return out
-    out["fat_loss_kg"] = -pd.to_numeric(out["fat_change_kg"], errors="coerce")
-    out["lean_retention_kg"] = pd.to_numeric(out["lean_change_kg"], errors="coerce")
-    return out
+    output = pd.DataFrame(rows)
+    if not output.empty:
+        output["fat_loss_kg"] = -pd.to_numeric(output["fat_change_kg"], errors="coerce")
+        output["lean_retention_kg"] = pd.to_numeric(output["lean_change_kg"], errors="coerce")
+    return output
 
 
-def _corr(blocks: pd.DataFrame, x: str, y: str) -> tuple[float | None, int]:
+def _spearman(blocks: pd.DataFrame, x: str, y: str) -> tuple[float | None, int]:
+    """Spearman correlation without scipy: Pearson correlation of rank values."""
     pair = blocks[[x, y]].apply(pd.to_numeric, errors="coerce").dropna()
-    if len(pair) < MIN_BLOCKS_FOR_ASSOCIATION:
-        return None, len(pair)
+    n = len(pair)
+    if n < MIN_BLOCKS_FOR_ASSOCIATION:
+        return None, n
     if pair[x].nunique() < 3 or pair[y].nunique() < 3:
-        return None, len(pair)
-    return float(pair[x].corr(pair[y], method="spearman")), len(pair)
+        return None, n
+    ranked_x = pair[x].rank(method="average")
+    ranked_y = pair[y].rank(method="average")
+    value = ranked_x.corr(ranked_y)
+    return (None if pd.isna(value) else float(value)), n
 
 
-def _fmt(value, digits=2):
+def _fmt(value, digits: int = 2) -> str:
     if value is None or pd.isna(value):
         return "n/a"
     return f"{float(value):.{digits}f}"
 
 
 def main() -> None:
-    daily = load_daily()
-    blocks = build_blocks(daily)
+    blocks = build_blocks(load_daily())
     blocks.to_csv(OUT_CSV, index=False)
 
     lines = [
@@ -159,15 +159,15 @@ def main() -> None:
     if blocks.empty:
         lines.extend(["", "Not enough complete historical blocks are available yet."])
     else:
-        usable_outcomes = blocks.dropna(subset=["fat_change_kg", "lean_change_kg"]).copy()
-        compatible = usable_outcomes[
-            (usable_outcomes["fat_change_kg"] < 0)
-            & (usable_outcomes["lean_change_kg"] >= -0.30)
+        usable = blocks.dropna(subset=["fat_change_kg", "lean_change_kg"]).copy()
+        compatible = usable[
+            (usable["fat_change_kg"] < 0)
+            & (usable["lean_change_kg"] >= -0.30)
         ].copy()
 
         lines.extend(
             [
-                f"Blocks with both fat and lean outcome estimates: {len(usable_outcomes)}",
+                f"Blocks with both fat and lean outcome estimates: {len(usable)}",
                 f"Blocks with fat down and BIA lean change >= -0.30 kg: {len(compatible)}",
                 "",
                 "Typical qualifying block",
@@ -204,37 +204,41 @@ def main() -> None:
             ("avg_hrv", "HRV"),
             ("workouts", "Resistance workouts"),
         ]
-        lines.extend(["", "Exploratory associations", "------------------------"])
-        lines.append("Positive fat-loss correlation means higher values tended to accompany more BIA fat loss; positive lean-retention correlation means higher values tended to accompany better BIA lean retention.")
+        lines.extend(
+            [
+                "",
+                "Exploratory associations",
+                "------------------------",
+                "Positive fat-loss correlation means higher values tended to accompany more BIA fat loss; positive lean-retention correlation means higher values tended to accompany better BIA lean retention.",
+            ]
+        )
 
-        association_rows = []
+        associations = []
         for column, label in predictors:
-            fat_r, fat_n = _corr(blocks, column, "fat_loss_kg")
-            lean_r, lean_n = _corr(blocks, column, "lean_retention_kg")
-            association_rows.append((label, fat_r, fat_n, lean_r, lean_n))
+            fat_r, fat_n = _spearman(blocks, column, "fat_loss_kg")
+            lean_r, lean_n = _spearman(blocks, column, "lean_retention_kg")
+            associations.append((label, fat_r, fat_n, lean_r, lean_n))
             lines.append(
                 f"- {label}: fat-loss r={_fmt(fat_r)} (n={fat_n}); lean-retention r={_fmt(lean_r)} (n={lean_n})"
             )
 
-        available = [row for row in association_rows if row[1] is not None or row[3] is not None]
-        if not available:
-            lines.append("Not enough comparable blocks yet for stable association estimates. Continue collecting complete nutrition/body/recovery data.")
+        lines.extend(["", "Signals worth watching", "---------------------"])
+        notable = []
+        for label, fat_r, fat_n, lean_r, lean_n in associations:
+            if fat_r is not None and abs(fat_r) >= 0.35:
+                notable.append(
+                    f"{label} has a moderate exploratory association with fat-loss outcome (Spearman r={fat_r:+.2f}, n={fat_n})."
+                )
+            if lean_r is not None and abs(lean_r) >= 0.35:
+                notable.append(
+                    f"{label} has a moderate exploratory association with BIA lean-retention outcome (Spearman r={lean_r:+.2f}, n={lean_n})."
+                )
+        if notable:
+            lines.extend(f"- {item}" for item in notable)
         else:
-            lines.extend(["", "Signals worth watching", "---------------------"])
-            notable = []
-            for label, fat_r, fat_n, lean_r, lean_n in available:
-                if fat_r is not None and abs(fat_r) >= 0.35:
-                    notable.append(
-                        f"{label} has a moderate exploratory association with fat-loss outcome (Spearman r={fat_r:+.2f}, n={fat_n})."
-                    )
-                if lean_r is not None and abs(lean_r) >= 0.35:
-                    notable.append(
-                        f"{label} has a moderate exploratory association with BIA lean-retention outcome (Spearman r={lean_r:+.2f}, n={lean_n})."
-                    )
-            if notable:
-                lines.extend(f"- {item}" for item in notable)
-            else:
-                lines.append("No predictor currently shows a moderate association (|r| >= 0.35) strong enough to flag for follow-up.")
+            lines.append(
+                "No predictor currently shows a moderate association (|r| >= 0.35) with enough comparable blocks to flag for follow-up."
+            )
 
     lines.extend(
         [
@@ -243,7 +247,7 @@ def main() -> None:
             "-----------",
             f"Blocks are non-overlapping {BLOCK_DAYS}-day calendar periods and require at least {MIN_BODY_DAYS} body-composition days and {MIN_NUTRITION_DAYS} complete nutrition days.",
             "Body outcomes use a within-block linear trend rather than first/last single readings to reduce day-to-day noise.",
-            f"Associations are reported only with at least {MIN_BLOCKS_FOR_ASSOCIATION} comparable blocks and use Spearman correlation. They should be treated as hypotheses to test, not prescriptions.",
+            f"Associations are reported only with at least {MIN_BLOCKS_FOR_ASSOCIATION} comparable blocks and use Spearman rank correlation. They should be treated as hypotheses to test, not prescriptions.",
         ]
     )
 
