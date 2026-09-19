@@ -12,6 +12,7 @@ REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 OUT_PATH = REPORTS_DIR / "weekly_coaching_packet.txt"
 
 SOURCE_FILES = {
+    "canonical": REPORTS_DIR / "canonical_coaching_snapshot.txt",
     "phase": REPORTS_DIR / "phase_detection.txt",
     "guardrail": REPORTS_DIR / "cut_stress_guardrail.txt",
     "calorie_recommendation": REPORTS_DIR / "adaptive_calorie_recommendation.txt",
@@ -105,6 +106,7 @@ def main() -> None:
         f"Generated: {datetime.now().isoformat(timespec='seconds')}",
         "",
     ]
+    add_block(lines, "Canonical Coaching Snapshot", texts["canonical"], "No canonical coaching snapshot available.")
     add_block(lines, "Phase", "\n".join(x for x in [phase_head, phase_body] if x), "No phase analysis available.")
     add_block(lines, "Recovery Guardrail", "\n".join(x for x in [guardrail_head, guardrail_body, guardrail_reassuring] if x), "No recovery guardrail available.")
     add_block(lines, "Calorie Recommendation", "\n\n".join(x for x in [calorie, calorie_why] if x), "No calorie recommendation available.")
