@@ -1,0 +1,40 @@
+name: Validate Personal Response Weekly Integration
+
+on:
+  push:
+    paths:
+      - ".github/workflows/validate_personal_response_weekly.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r weekly_requirements.txt
+      - name: Compile changed scripts
+        run: python -m py_compile scripts/75_personal_response_analysis.py scripts/81_build_weekly_coaching_packet.py scripts/100_run_weekly_coaching_stack.py
+      - name: Refresh live sources
+        env:
+          WITHINGS_DATABASE_URL: ${{ secrets.WITHINGS_DATABASE_URL }}
+          GOOGLE_HEALTH_CLIENT_ID: ${{ secrets.GOOGLE_HEALTH_CLIENT_ID }}
+          GOOGLE_HEALTH_CLIENT_SECRET: ${{ secrets.GOOGLE_HEALTH_CLIENT_SECRET }}
+          GOOGLE_HEALTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_HEALTH_REFRESH_TOKEN }}
+          HEVY_API_KEY: ${{ secrets.HEVY_API_KEY }}
+        run: python scripts/05_refresh_current_sources.py
+      - name: Run weekly coaching stack
+        run: python scripts/100_run_weekly_coaching_stack.py
+      - name: Validate freshness
+        run: python scripts/95_validate_data_freshness.py
+      - name: Show personal response report and packet section
+        run: |
+          cat reports/personal_response_analysis.txt
+          echo ""
+          echo "--- Weekly packet personal-response section ---"
+          sed -n '/Personal Response Analysis/,/Body Composition and Recovery/p' reports/weekly_coaching_packet.txt
