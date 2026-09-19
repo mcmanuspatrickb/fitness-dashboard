@@ -1,0 +1,57 @@
+name: Validate Expanded Coaching Engine
+
+on:
+  push:
+    paths:
+      - ".github/workflows/validate_coaching_expansion.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pip install -r weekly_requirements.txt
+      - name: Compile changed coaching scripts
+        run: |
+          python -m py_compile \
+            scripts/05_refresh_current_sources.py \
+            scripts/15_ingest_hevy_current.py \
+            scripts/16_sync_grip_persistent.py \
+            scripts/22_build_clean_fitbit_daily.py \
+            scripts/25_build_performance_markers.py \
+            scripts/report_context.py \
+            scripts/73_adaptive_calorie_recommendation.py \
+            scripts/76_adaptive_coaching_feedback.py \
+            scripts/77_phase_detection.py \
+            scripts/78_cut_stress_guardrail.py \
+            scripts/81_build_weekly_coaching_packet.py \
+            scripts/100_run_weekly_coaching_stack.py \
+            scripts/111_build_coaching_summary.py
+      - name: Refresh live sources
+        env:
+          WITHINGS_DATABASE_URL: ${{ secrets.WITHINGS_DATABASE_URL }}
+          GOOGLE_HEALTH_CLIENT_ID: ${{ secrets.GOOGLE_HEALTH_CLIENT_ID }}
+          GOOGLE_HEALTH_CLIENT_SECRET: ${{ secrets.GOOGLE_HEALTH_CLIENT_SECRET }}
+          GOOGLE_HEALTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_HEALTH_REFRESH_TOKEN }}
+          HEVY_API_KEY: ${{ secrets.HEVY_API_KEY }}
+        run: python scripts/05_refresh_current_sources.py
+      - run: python scripts/100_run_weekly_coaching_stack.py
+      - run: python scripts/95_validate_data_freshness.py
+      - run: python scripts/111_build_coaching_summary.py
+      - name: Show key outputs
+        run: |
+          cat reports/phase_detection.txt
+          echo "--- guardrail ---"
+          cat reports/cut_stress_guardrail.txt
+          echo "--- recommendation ---"
+          cat reports/adaptive_calorie_recommendation.txt
+          echo "--- feedback ---"
+          cat reports/adaptive_coaching_feedback.txt
+          echo "--- email ---"
+          cat reports/weekly_coaching_summary.txt
