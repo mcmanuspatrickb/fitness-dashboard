@@ -33,7 +33,7 @@ jobs:
             scripts/81_build_weekly_coaching_packet.py \
             scripts/100_run_weekly_coaching_stack.py \
             scripts/111_build_coaching_summary.py
-      - name: Refresh live sources
+      - name: Refresh live sources after compatibility fix
         env:
           WITHINGS_DATABASE_URL: ${{ secrets.WITHINGS_DATABASE_URL }}
           GOOGLE_HEALTH_CLIENT_ID: ${{ secrets.GOOGLE_HEALTH_CLIENT_ID }}
