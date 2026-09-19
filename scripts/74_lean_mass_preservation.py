@@ -109,6 +109,48 @@ def _rolling_energy_balance(frame: pd.DataFrame, recent_weight: float | None) ->
     return result
 
 
+def _canonical_energy_from_report(fallback: dict[str, Any]) -> dict[str, Any]:
+    """Overlay the canonical 28/42-day energy model onto this supporting report.
+
+    The adaptive calorie model runs earlier in the weekly stack and is the
+    authoritative energy model. This keeps the lean-mass report from publishing
+    a second, competing maintenance estimate while retaining its local 28-day
+    calculation only as a fallback if the upstream report is unavailable.
+    """
+    report_path = REPORTS_DIR / "adaptive_calorie_recommendation.txt"
+    if not report_path.exists():
+        result = dict(fallback)
+        result["energy_source"] = "28-day fallback"
+        return result
+
+    lines = report_path.read_text(encoding="utf-8").splitlines()
+
+    def number(label: str) -> float | None:
+        prefix = label + ":"
+        for line in lines:
+            if line.startswith(prefix):
+                token = line.split(":", 1)[1].strip().split()[0].replace(",", "")
+                try:
+                    return float(token)
+                except ValueError:
+                    return None
+        return None
+
+    result = dict(fallback)
+    result["estimated_tdee"] = number("consensus planning maintenance") or fallback.get("estimated_tdee")
+    result["estimated_deficit"] = number("consensus estimated deficit") or fallback.get("estimated_deficit")
+    result["weight_loss_pct_week"] = number("rolling 28-day loss pace") or fallback.get("weight_loss_pct_week")
+    result["tdee_28"] = number("rolling 28-day estimated maintenance")
+    result["tdee_42"] = number("rolling 42-day estimated maintenance")
+    result["energy_source"] = "canonical 28/42-day consensus"
+    for line in lines:
+        if line.startswith("28/42-day TDEE agreement:"):
+            result["tdee_agreement"] = line.split(":", 1)[1].strip()
+        elif line.startswith("energy-balance coverage (28d):"):
+            result["coverage_summary"] = line.split(":", 1)[1].strip()
+    return result
+
+
 def main() -> None:
     context = load_report_context()
     weekly = context.get("weekly", {})
@@ -131,7 +173,7 @@ def main() -> None:
     avg_sleep_28 = trend.get("avg_sleep")
     workouts_28 = trend.get("workouts")
 
-    energy = _rolling_energy_balance(trailing_28, recent_weight)
+    energy = _canonical_energy_from_report(_rolling_energy_balance(trailing_28, recent_weight))
 
     protein_per_kg_lean = None
     protein_low = None
@@ -235,11 +277,11 @@ def main() -> None:
 
     if energy.get("estimated_tdee") is not None:
         observations.append(
-            "Rolling 28-day energy-balance estimate: "
-            f"maintenance about {energy['estimated_tdee']:.0f} kcal/day, "
-            f"with an estimated average deficit of {energy['estimated_deficit']:.0f} kcal/day "
-            f"({energy['coverage_confidence']} coverage confidence; "
-            f"{energy['calorie_days']} nutrition days and {energy['weight_days']} weight days)."
+            "Canonical multi-window energy estimate: "
+            f"planning maintenance about {energy['estimated_tdee']:.0f} kcal/day, "
+            f"with an estimated current deficit of {energy['estimated_deficit']:.0f} kcal/day. "
+            f"28/42-day agreement is {energy.get('tdee_agreement', 'n/a')}; "
+            f"28-day coverage is {energy.get('coverage_summary', energy.get('coverage_confidence', 'n/a'))}."
         )
 
     if protein_per_kg_lean is not None:
@@ -320,9 +362,10 @@ def main() -> None:
         f"4-week BIA lean-mass change: {_num(lean_delta_4w, 2, ' kg')}",
         f"BIA-estimated fat share of weight loss: {_num(fat_share_of_loss, 0, '%')}",
         f"Recent weight-loss pace: {_num(pace, 2, '% of body weight/week')}",
-        f"Rolling 28-day estimated maintenance: {_num(energy.get('estimated_tdee'), 0, ' kcal/day')}",
-        f"Rolling 28-day estimated calorie deficit: {_num(energy.get('estimated_deficit'), 0, ' kcal/day')}",
-        f"Energy-balance coverage confidence: {energy.get('coverage_confidence', 'LOW')}",
+        f"Canonical planning maintenance: {_num(energy.get('estimated_tdee'), 0, ' kcal/day')}",
+        f"Canonical estimated calorie deficit: {_num(energy.get('estimated_deficit'), 0, ' kcal/day')}",
+        f"28/42-day TDEE agreement: {energy.get('tdee_agreement', 'n/a')}",
+        f"Energy-model source: {energy.get('energy_source', 'n/a')}",
         f"Current estimated lean mass: {_num(recent_lean, 1, ' kg')}",
         f"Current 7-day protein: {_num(recent_protein, 0, ' g/day')}",
         f"28-day protein: {_num(avg_protein_28, 0, ' g/day')}",
@@ -341,7 +384,7 @@ def main() -> None:
             "Method Note",
             "-----------",
             "Lean mass here is the Withings BIA estimate, not a direct muscle measurement. The report therefore cross-checks it against multi-week strength, protein, calorie, sleep, and training trends before suggesting changes.",
-            "The rolling maintenance/TDEE estimate is inferred from the 28-day scale-weight trend plus logged calorie intake using 7,700 kcal per kg as an energy-balance approximation. Water/glycogen shifts and food-logging error can materially move the estimate, so use it as a multi-week planning signal rather than a metabolic measurement.",
+            "Maintenance/TDEE comes from the canonical adaptive energy model, which compares 28- and 42-day scale-weight/intake estimates and reports their agreement. The local 28-day calculation is retained only as a fallback. Water/glycogen shifts and food-logging error can materially move the estimate, so use it as a multi-week planning signal rather than a metabolic measurement.",
             "The protein range is a practical coaching heuristic for a resistance-trained calorie deficit, not an individualized medical prescription.",
         ]
     )
