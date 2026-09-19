@@ -34,6 +34,7 @@ PIPELINE = [
     ("73_adaptive_calorie_recommendation.py", "Build phase-aware adaptive calorie recommendation"),
     ("76_adaptive_coaching_feedback.py", "Update adaptive coaching feedback loop"),
     ("74_lean_mass_preservation.py", "Build lean-mass preservation analysis"),
+    ("79_canonical_coaching_engine.py", "Build canonical coaching snapshot"),
     ("80_weekly_coaching_report.py", "Build weekly coaching report"),
     ("81_build_weekly_coaching_packet.py", "Build weekly coaching packet"),
 ]
