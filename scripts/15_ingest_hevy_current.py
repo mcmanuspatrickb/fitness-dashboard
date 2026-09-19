@@ -91,8 +91,7 @@ def fetch_body_measurements(page_size: int = 10, max_pages: int = 50) -> list[di
             max_pages,
         )
     except requests.HTTPError as exc:
-        # Waist/body-measurement ingestion is supplemental. A Hevy account/API
-        # variant without this endpoint should not break workout ingestion.
+        # Supplemental only: lack of this endpoint must never break workout sync.
         print(f"Warning: Hevy body-measurement endpoint unavailable: {exc}")
         return []
 
@@ -111,8 +110,12 @@ def normalize(workouts: list[dict[str, Any]]) -> tuple[pd.DataFrame, pd.DataFram
             _first(workout, ["end_time", "endTime", "ended_at", "updated_at"]),
             errors="coerce", utc=True,
         )
-        created_at = pd.to_datetime(_first(workout, ["created_at", "createdAt"]), errors="coerce", utc=True)
-        updated_at = pd.to_datetime(_first(workout, ["updated_at", "updatedAt"]), errors="coerce", utc=True)
+        created_at = pd.to_datetime(
+            _first(workout, ["created_at", "createdAt"]), errors="coerce", utc=True
+        )
+        updated_at = pd.to_datetime(
+            _first(workout, ["updated_at", "updatedAt"]), errors="coerce", utc=True
+        )
 
         workout_rows.append({
             "workout_id": workout_id,
@@ -126,15 +129,30 @@ def normalize(workouts: list[dict[str, Any]]) -> tuple[pd.DataFrame, pd.DataFram
             "raw_json": json.dumps(workout, ensure_ascii=False),
         })
 
-        exercises = workout.get("exercises") or workout.get("exercise_templates") or workout.get("workout_exercises") or []
+        exercises = (
+            workout.get("exercises")
+            or workout.get("exercise_templates")
+            or workout.get("workout_exercises")
+            or []
+        )
         for exercise_position, exercise in enumerate(exercises):
             exercise_index = _first(exercise, ["index", "exercise_index"], exercise_position)
-            exercise_title = _first(exercise, ["title", "name", "exercise_title", "exerciseName"], "Exercise")
-            exercise_template_id = _first(exercise, ["exercise_template_id", "exerciseTemplateId", "template_id"])
+            exercise_title = _first(
+                exercise,
+                ["title", "name", "exercise_title", "exerciseName"],
+                "Exercise",
+            )
+            exercise_template_id = _first(
+                exercise, ["exercise_template_id", "exerciseTemplateId", "template_id"]
+            )
             sets = exercise.get("sets") or exercise.get("workout_sets") or exercise.get("exercise_sets") or []
             for set_position, set_item in enumerate(sets):
-                weight = pd.to_numeric(_first(set_item, ["weight_kg", "weightKg", "weight"]), errors="coerce")
-                reps = pd.to_numeric(_first(set_item, ["reps", "repetitions"]), errors="coerce")
+                weight = pd.to_numeric(
+                    _first(set_item, ["weight_kg", "weightKg", "weight"]), errors="coerce"
+                )
+                reps = pd.to_numeric(
+                    _first(set_item, ["reps", "repetitions"]), errors="coerce"
+                )
                 volume = float(weight) * float(reps) if pd.notna(weight) and pd.notna(reps) else None
                 set_index = _first(set_item, ["index", "set_index"], set_position)
                 set_rows.append({
@@ -147,9 +165,13 @@ def normalize(workouts: list[dict[str, Any]]) -> tuple[pd.DataFrame, pd.DataFram
                     "set_type": _first(set_item, ["type", "set_type"], "normal"),
                     "weight_kg": weight,
                     "reps": reps,
-                    "duration_seconds": pd.to_numeric(_first(set_item, ["duration_seconds", "durationSeconds"]), errors="coerce"),
+                    "duration_seconds": pd.to_numeric(
+                        _first(set_item, ["duration_seconds", "durationSeconds"]), errors="coerce"
+                    ),
                     "rpe": pd.to_numeric(set_item.get("rpe"), errors="coerce"),
-                    "distance_meters": pd.to_numeric(_first(set_item, ["distance_meters", "distanceMeters"]), errors="coerce"),
+                    "distance_meters": pd.to_numeric(
+                        _first(set_item, ["distance_meters", "distanceMeters"]), errors="coerce"
+                    ),
                     "volume": volume,
                     "raw_json": json.dumps(set_item, ensure_ascii=False),
                 })
@@ -245,10 +267,17 @@ def ensure_tables(con) -> None:
         "reps": "DOUBLE", "duration_seconds": "DOUBLE", "rpe": "DOUBLE",
         "distance_meters": "DOUBLE", "volume": "DOUBLE", "raw_json": "JSON",
     }
+    body_columns = {
+        "measurement_id": "VARCHAR", "measured_at": "TIMESTAMP", "date": "DATE",
+        "waist_cm": "DOUBLE", "abdomen_cm": "DOUBLE", "chest_cm": "DOUBLE",
+        "neck_cm": "DOUBLE", "hips_cm": "DOUBLE", "raw_json": "JSON",
+    }
     for column, dtype in workout_columns.items():
         _ensure_column(con, "raw.hevy_workouts", column, dtype)
     for column, dtype in set_columns.items():
         _ensure_column(con, "raw.hevy_sets", column, dtype)
+    for column, dtype in body_columns.items():
+        _ensure_column(con, "raw.hevy_body_measurements", column, dtype)
 
 
 def main() -> None:
@@ -265,9 +294,16 @@ def main() -> None:
 
         if not workouts_df.empty:
             con.register("hevy_workouts_current", workouts_df)
-            con.execute("DELETE FROM raw.hevy_workouts WHERE workout_id IN (SELECT workout_id FROM hevy_workouts_current)")
+            con.execute(
+                "DELETE FROM raw.hevy_workouts WHERE workout_id IN (SELECT workout_id FROM hevy_workouts_current)"
+            )
+            # Explicit target columns are intentional: the historical seed DB can
+            # contain legacy extra columns that are not part of the current API.
             con.execute("""
-                INSERT INTO raw.hevy_workouts
+                INSERT INTO raw.hevy_workouts (
+                    workout_id, title, routine_id, description,
+                    start_time, end_time, updated_at, created_at, raw_json
+                )
                 SELECT workout_id, title, routine_id, description,
                        start_time, end_time, updated_at, created_at, raw_json::JSON
                 FROM hevy_workouts_current
@@ -275,9 +311,15 @@ def main() -> None:
 
         if not sets_df.empty:
             con.register("hevy_sets_current", sets_df)
-            con.execute("DELETE FROM raw.hevy_sets WHERE workout_id IN (SELECT DISTINCT workout_id FROM hevy_sets_current)")
+            con.execute(
+                "DELETE FROM raw.hevy_sets WHERE workout_id IN (SELECT DISTINCT workout_id FROM hevy_sets_current)"
+            )
             con.execute("""
-                INSERT INTO raw.hevy_sets
+                INSERT INTO raw.hevy_sets (
+                    set_key, workout_id, exercise_index, exercise_title,
+                    exercise_template_id, set_index, set_type, weight_kg,
+                    reps, duration_seconds, rpe, distance_meters, volume, raw_json
+                )
                 SELECT set_key, workout_id, exercise_index, exercise_title,
                        exercise_template_id, set_index, set_type, weight_kg,
                        reps, duration_seconds, rpe, distance_meters, volume, raw_json::JSON
@@ -289,14 +331,19 @@ def main() -> None:
             con.execute("DELETE FROM raw.hevy_body_measurements WHERE date >= ?", [first_date])
             con.register("hevy_body_current", body_df)
             con.execute("""
-                INSERT INTO raw.hevy_body_measurements
+                INSERT INTO raw.hevy_body_measurements (
+                    measurement_id, measured_at, date, waist_cm, abdomen_cm,
+                    chest_cm, neck_cm, hips_cm, raw_json
+                )
                 SELECT measurement_id, measured_at, date, waist_cm, abdomen_cm,
                        chest_cm, neck_cm, hips_cm, raw_json::JSON
                 FROM hevy_body_current
                 ORDER BY measured_at
             """)
 
-        latest = con.execute("SELECT MAX(CAST(start_time AS DATE)) FROM raw.hevy_workouts").fetchone()[0]
+        latest = con.execute(
+            "SELECT MAX(CAST(start_time AS DATE)) FROM raw.hevy_workouts"
+        ).fetchone()[0]
         latest_waist = con.execute(
             "SELECT MAX(date) FROM raw.hevy_body_measurements WHERE waist_cm IS NOT NULL"
         ).fetchone()[0]
