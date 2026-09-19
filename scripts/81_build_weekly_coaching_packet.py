@@ -14,7 +14,6 @@ SOURCE_FILES = {
     "strength_adjusted": REPORTS_DIR / "strength_adjusted_coaching.txt",
     "calorie_recommendation": REPORTS_DIR / "adaptive_calorie_recommendation.txt",
     "lean_mass_preservation": REPORTS_DIR / "lean_mass_preservation.txt",
-    "fast_decision": REPORTS_DIR / "should_i_fast.txt",
     "strength_analysis": REPORTS_DIR / "strength_progress_analysis.txt",
 }
 
@@ -93,12 +92,11 @@ def main() -> None:
     strength_adjusted = read_text(SOURCE_FILES["strength_adjusted"])
     calorie_reco = read_text(SOURCE_FILES["calorie_recommendation"])
     lean_mass_report = read_text(SOURCE_FILES["lean_mass_preservation"])
-    fast_decision = read_text(SOURCE_FILES["fast_decision"])
     strength_analysis = read_text(SOURCE_FILES["strength_analysis"])
 
     generated_at = datetime.now().isoformat(timespec="seconds")
 
-    overall_grade = extract_section_by_heading_lines(weekly_report, "Overall Grade")
+    weekly_interpretation = extract_section_by_heading_lines(weekly_report, "Weekly Interpretation")
     next_week_focus = extract_section_by_heading_lines(weekly_report, "Next Week Focus")
     data_quality = extract_section_by_heading_lines(weekly_report, "Data Quality")
     four_week_context = extract_section_by_heading_lines(weekly_report, "4-Week Context")
@@ -121,10 +119,6 @@ def main() -> None:
     lean_suggestions = extract_section_by_heading_lines(lean_mass_report, "Suggestions")
     lean_method = extract_section_by_heading_lines(lean_mass_report, "Method Note")
 
-    fast_decision_section = extract_section_by_heading_lines(fast_decision, "Decision")
-    fast_reasons_against = extract_section_by_heading_lines(fast_decision, "Reasons Against")
-    fast_reasons_for = extract_section_by_heading_lines(fast_decision, "Reasons For")
-
     latest_strength_snapshot = extract_section_by_heading_lines(strength_analysis, "Latest Weekly Snapshot")
 
     combined_focus_items = dedupe_keep_order(
@@ -143,7 +137,8 @@ def main() -> None:
     lines.append("----------------")
     top_line = first_nonempty(
         strength_headline.splitlines()[0] if strength_headline else "",
-        overall_grade.splitlines()[0] if overall_grade else "",
+        weekly_interpretation.splitlines()[0] if weekly_interpretation else "",
+        lean_interpretation.splitlines()[0] if lean_interpretation else "",
     )
     lines.append(top_line if top_line else "No top-line summary available.")
     lines.append("")
@@ -222,34 +217,23 @@ def main() -> None:
         lines.append(calorie_why)
     lines.append("")
 
-    lines.append("Fast Decision")
-    lines.append("-------------")
-    lines.append(fast_decision_section if fast_decision_section else "No fast decision available.")
-    if fast_reasons_against:
-        lines.append("")
-        lines.append("Reasons Against")
-        lines.append("---------------")
-        lines.append(fast_reasons_against)
-    if fast_reasons_for:
-        lines.append("")
-        lines.append("Reasons For")
-        lines.append("-----------")
-        lines.append(fast_reasons_for)
-    lines.append("")
-
-    lines.append("What This Means")
-    lines.append("---------------")
+    lines.append("Weekly Interpretation")
+    lines.append("---------------------")
     lines.append(
-        strength_meaning
-        if strength_meaning
-        else "No integrated interpretation available."
+        weekly_interpretation
+        if weekly_interpretation
+        else (
+            strength_meaning
+            if strength_meaning
+            else "No integrated interpretation available."
+        )
     )
     lines.append("")
 
     lines.append("Next Week Focus")
     lines.append("---------------")
     if combined_focus_items:
-        for item in combined_focus_items:
+        for item in combined_focus_items[:4]:
             lines.append(f"- {item}")
     else:
         lines.append("No next-week focus items available.")
