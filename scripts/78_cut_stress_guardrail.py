@@ -38,12 +38,62 @@ def _strength_counts(items: list[dict[str, Any]]) -> tuple[int, int, int]:
     return up, flat, down
 
 
+def _median_mad(values: pd.Series) -> tuple[float | None, float | None]:
+    numeric = pd.to_numeric(values, errors="coerce").dropna()
+    if numeric.empty:
+        return None, None
+    median = float(numeric.median())
+    mad = float((numeric - median).abs().median())
+    return median, mad
+
+
+def _personal_recovery(trailing: pd.DataFrame, end_date) -> dict[str, Any]:
+    result = {
+        "rhr_baseline": None,
+        "rhr_recent": None,
+        "rhr_state": "INSUFFICIENT_DATA",
+        "hrv_baseline": None,
+        "hrv_recent": None,
+        "hrv_state": "INSUFFICIENT_DATA",
+    }
+    if trailing is None or trailing.empty:
+        return result
+    frame = trailing.copy()
+    frame["date"] = pd.to_datetime(frame["date"], errors="coerce").dt.date
+    baseline_end = end_date - pd.Timedelta(days=7)
+    recent_start = end_date - pd.Timedelta(days=6)
+    baseline = frame[frame["date"] <= baseline_end]
+    recent = frame[frame["date"].between(recent_start, end_date)]
+
+    rhr_base, rhr_mad = _median_mad(baseline["resting_hr"])
+    rhr_recent, _ = _median_mad(recent["resting_hr"])
+    hrv_base, hrv_mad = _median_mad(baseline["hrv"])
+    hrv_recent, _ = _median_mad(recent["hrv"])
+
+    result.update({
+        "rhr_baseline": rhr_base,
+        "rhr_recent": rhr_recent,
+        "hrv_baseline": hrv_base,
+        "hrv_recent": hrv_recent,
+    })
+    if rhr_base is not None and rhr_recent is not None:
+        threshold = max(2.0, 1.5 * (rhr_mad or 0.0))
+        result["rhr_threshold_bpm"] = threshold
+        result["rhr_state"] = "ELEVATED" if rhr_recent > rhr_base + threshold else "NORMAL_FOR_USER"
+    if hrv_base is not None and hrv_recent is not None:
+        threshold = max(2.0, 1.5 * (hrv_mad or 0.0))
+        result["hrv_threshold_ms"] = threshold
+        result["hrv_state"] = "LOW_FOR_USER" if hrv_recent < hrv_base - threshold else "NORMAL_FOR_USER"
+    return result
+
+
 def main() -> None:
     context = load_report_context()
     weekly = context.get("weekly", {})
     trend = context.get("trend_4w", {})
     performance = context.get("performance", {})
     strength = context.get("strength_4w", [])
+    trailing = context.get("trailing_28", pd.DataFrame())
     end_date = context.get("analysis_end_date")
     phase = _load_phase()
 
@@ -56,8 +106,6 @@ def main() -> None:
 
     sleep = weekly.get("recent_sleep")
     sleep_delta = weekly.get("sleep_delta")
-    rhr_delta = weekly.get("rhr_delta")
-    hrv_delta = weekly.get("hrv_delta")
     lean_delta_4w = trend.get("lean_delta")
     fat_delta_4w = trend.get("fat_delta")
     weight_delta_4w = trend.get("weight_delta")
@@ -66,6 +114,7 @@ def main() -> None:
     grip_trend_pct = performance.get("grip_trend_pct")
     grip_count = performance.get("grip_measurement_count", 0)
     waist_change = performance.get("waist_change_cm")
+    recovery = _personal_recovery(trailing, end_date)
 
     if sleep is not None and float(sleep) < 6.25:
         concerns.append(f"sleep is low at about {float(sleep):.1f} h/night")
@@ -74,15 +123,19 @@ def main() -> None:
     elif sleep is not None and float(sleep) >= 7.0:
         reassuring.append("sleep is at or above 7 h/night")
 
-    if rhr_delta is not None and float(rhr_delta) >= 3.0:
-        concerns.append(f"resting HR is up {float(rhr_delta):.1f} bpm versus the prior week")
-    elif rhr_delta is not None and float(rhr_delta) <= 0:
-        reassuring.append("resting HR is not rising")
+    if recovery["rhr_state"] == "ELEVATED":
+        concerns.append(
+            f"resting HR is elevated for your recent baseline ({recovery['rhr_recent']:.1f} vs {recovery['rhr_baseline']:.1f} bpm median)"
+        )
+    elif recovery["rhr_state"] == "NORMAL_FOR_USER":
+        reassuring.append("resting HR is within your recent personal baseline")
 
-    if hrv_delta is not None and float(hrv_delta) <= -3.0:
-        concerns.append(f"HRV is down {abs(float(hrv_delta)):.1f} ms versus the prior week")
-    elif hrv_delta is not None and float(hrv_delta) >= 0:
-        reassuring.append("HRV is stable or improving")
+    if recovery["hrv_state"] == "LOW_FOR_USER":
+        concerns.append(
+            f"HRV is low for your recent baseline ({recovery['hrv_recent']:.1f} vs {recovery['hrv_baseline']:.1f} ms median)"
+        )
+    elif recovery["hrv_state"] == "NORMAL_FOR_USER":
+        reassuring.append("HRV is within your recent personal baseline")
 
     if down >= 2:
         concerns.append(f"{down} comparable four-week strength trends are down")
@@ -117,7 +170,7 @@ def main() -> None:
 
     severe = any(
         phrase in " ".join(concerns).lower()
-        for phrase in ["strength trends are down", "resting hr is up", "hrv is down"]
+        for phrase in ["strength trends are down", "resting hr is elevated", "hrv is low"]
     )
     if len(concerns) >= 3 or (len(concerns) >= 2 and severe):
         status = "RECOVERY_CONCERN"
@@ -141,6 +194,7 @@ def main() -> None:
         "grip_measurement_count": grip_count,
         "grip_trend_pct": grip_trend_pct,
         "waist_change_cm": waist_change,
+        "personal_recovery": recovery,
         "interpretation": interpretation,
     }
     OUT_JSON.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -154,18 +208,17 @@ def main() -> None:
         f"status: {status}",
         f"interpretation: {interpretation}",
         "",
+        "Personal Recovery Baselines",
+        "---------------------------",
+        f"RHR: {_num(recovery.get('rhr_recent'), 1)} bpm recent median vs {_num(recovery.get('rhr_baseline'), 1)} baseline | {recovery.get('rhr_state')}",
+        f"HRV: {_num(recovery.get('hrv_recent'), 1)} ms recent median vs {_num(recovery.get('hrv_baseline'), 1)} baseline | {recovery.get('hrv_state')}",
+        "",
         "Signals of Concern",
         "------------------",
     ]
-    if concerns:
-        lines.extend(f"- {item}" for item in concerns)
-    else:
-        lines.append("- none")
+    lines.extend(f"- {item}" for item in concerns) if concerns else lines.append("- none")
     lines.extend(["", "Reassuring Signals", "------------------"])
-    if reassuring:
-        lines.extend(f"- {item}" for item in reassuring)
-    else:
-        lines.append("- none strong enough to list")
+    lines.extend(f"- {item}" for item in reassuring) if reassuring else lines.append("- none strong enough to list")
     lines.extend([
         "",
         "Performance Markers",
@@ -177,6 +230,7 @@ def main() -> None:
         "Method Note",
         "-----------",
         "The guardrail deliberately requires multiple independent signals before escalating concern. One noisy BIA reading, one poor night of sleep, or one weak workout is not enough by itself.",
+        "RHR and HRV are compared with your own recent baseline using median and median absolute deviation rather than relying only on fixed population-style thresholds.",
         "Grip is only used as a trend signal after at least four measurements. Waist is supportive context, not a recovery metric.",
     ])
     OUT_TXT.write_text("\n".join(lines), encoding="utf-8")
