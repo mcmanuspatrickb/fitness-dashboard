@@ -1,0 +1,63 @@
+name: Canonical Upgrade Validation
+
+on:
+  push:
+    paths:
+      - "patch_canonical_upgrade.py"
+      - ".github/workflows/canonical_upgrade_validation.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pip install -r weekly_requirements.txt
+      - name: Apply upgrade patch
+        run: python patch_canonical_upgrade.py
+      - name: Compile changed coaching code
+        run: |
+          python -m py_compile \
+            scripts/73_adaptive_calorie_recommendation.py \
+            scripts/76_adaptive_coaching_feedback.py \
+            scripts/78_cut_stress_guardrail.py \
+            scripts/79_canonical_coaching_engine.py \
+            scripts/81_build_weekly_coaching_packet.py \
+            scripts/100_run_weekly_coaching_stack.py \
+            scripts/111_build_coaching_summary.py
+      - name: Refresh current sources
+        env:
+          WITHINGS_DATABASE_URL: ${{ secrets.WITHINGS_DATABASE_URL }}
+          GOOGLE_HEALTH_CLIENT_ID: ${{ secrets.GOOGLE_HEALTH_CLIENT_ID }}
+          GOOGLE_HEALTH_CLIENT_SECRET: ${{ secrets.GOOGLE_HEALTH_CLIENT_SECRET }}
+          GOOGLE_HEALTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_HEALTH_REFRESH_TOKEN }}
+          HEVY_API_KEY: ${{ secrets.HEVY_API_KEY }}
+        run: python scripts/05_refresh_current_sources.py
+      - name: Run full coaching stack
+        env:
+          WITHINGS_DATABASE_URL: ${{ secrets.WITHINGS_DATABASE_URL }}
+        run: python scripts/100_run_weekly_coaching_stack.py
+      - name: Validate freshness
+        run: python scripts/95_validate_data_freshness.py
+      - name: Build canonical email
+        run: python scripts/111_build_coaching_summary.py
+      - name: Show key outputs
+        run: |
+          cat reports/canonical_coaching_snapshot.txt
+          echo "--- email ---"
+          cat reports/weekly_coaching_summary.txt
+      - name: Commit validated model patches
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/73_adaptive_calorie_recommendation.py scripts/76_adaptive_coaching_feedback.py
+          if ! git diff --cached --quiet; then
+            git commit -m "Use multi-window TDEE and longer feedback horizon"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
