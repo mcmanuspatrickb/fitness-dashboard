@@ -40,6 +40,8 @@ jobs:
           python scripts/05_refresh_current_sources.py
 
       - name: Rebuild coaching analytics
+        env:
+          WITHINGS_DATABASE_URL: ${{ secrets.WITHINGS_DATABASE_URL }}
         run: |
           python scripts/100_run_weekly_coaching_stack.py
 
