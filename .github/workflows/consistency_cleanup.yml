@@ -1,0 +1,103 @@
+name: Coaching Consistency Cleanup
+
+on:
+  push:
+    paths:
+      - ".github/workflows/consistency_cleanup.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Align personal-response threshold and lean-mass energy model
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f"Patch target not found: {label}")
+              return text.replace(old, new, 1)
+
+          # 1) Use the same 12-block gate as the canonical/adaptive model.
+          p = Path("scripts/75_personal_response_analysis.py")
+          text = p.read_text(encoding="utf-8")
+          text = replace_once(
+              text,
+              "MIN_BLOCKS_FOR_ASSOCIATION = 8",
+              "MIN_BLOCKS_FOR_ASSOCIATION = 12",
+              "personal response threshold",
+          )
+          p.write_text(text, encoding="utf-8")
+
+          # 2) Make lean-mass preservation consume the already-generated
+          # canonical multi-window energy result from the adaptive model.
+          p = Path("scripts/74_lean_mass_preservation.py")
+          text = p.read_text(encoding="utf-8")
+
+          marker = "\n\ndef main() -> None:\n"
+          helper = '''\n\ndef _canonical_energy_from_report(fallback: dict[str, Any]) -> dict[str, Any]:\n    \"\"\"Overlay the canonical 28/42-day energy model onto this supporting report.\n\n    The adaptive calorie model runs earlier in the weekly stack and is the\n    authoritative energy model. This keeps the lean-mass report from publishing\n    a second, competing maintenance estimate while retaining its local 28-day\n    calculation only as a fallback if the upstream report is unavailable.\n    \"\"\"\n    report_path = REPORTS_DIR / \"adaptive_calorie_recommendation.txt\"\n    if not report_path.exists():\n        result = dict(fallback)\n        result[\"energy_source\"] = \"28-day fallback\"\n        return result\n\n    lines = report_path.read_text(encoding=\"utf-8\").splitlines()\n\n    def number(label: str) -> float | None:\n        prefix = label + \":\"\n        for line in lines:\n            if line.startswith(prefix):\n                token = line.split(\":\", 1)[1].strip().split()[0].replace(\",\", \"\")\n                try:\n                    return float(token)\n                except ValueError:\n                    return None\n        return None\n\n    result = dict(fallback)\n    result[\"estimated_tdee\"] = number(\"consensus planning maintenance\") or fallback.get(\"estimated_tdee\")\n    result[\"estimated_deficit\"] = number(\"consensus estimated deficit\") or fallback.get(\"estimated_deficit\")\n    result[\"weight_loss_pct_week\"] = number(\"rolling 28-day loss pace\") or fallback.get(\"weight_loss_pct_week\")\n    result[\"tdee_28\"] = number(\"rolling 28-day estimated maintenance\")\n    result[\"tdee_42\"] = number(\"rolling 42-day estimated maintenance\")\n    result[\"energy_source\"] = \"canonical 28/42-day consensus\"\n    for line in lines:\n        if line.startswith(\"28/42-day TDEE agreement:\"):\n            result[\"tdee_agreement\"] = line.split(\":\", 1)[1].strip()\n        elif line.startswith(\"energy-balance coverage (28d):\"):\n            result[\"coverage_summary\"] = line.split(\":\", 1)[1].strip()\n    return result\n'''
+          text = replace_once(text, marker, helper + marker, "canonical energy helper insertion")
+          text = replace_once(
+              text,
+              "    energy = _rolling_energy_balance(trailing_28, recent_weight)\n",
+              "    energy = _canonical_energy_from_report(_rolling_energy_balance(trailing_28, recent_weight))\n",
+              "energy assignment",
+          )
+          text = replace_once(
+              text,
+              '''        observations.append(\n            \"Rolling 28-day energy-balance estimate: \"\n            f\"maintenance about {energy['estimated_tdee']:.0f} kcal/day, \"\n            f\"with an estimated average deficit of {energy['estimated_deficit']:.0f} kcal/day \"\n            f\"({energy['coverage_confidence']} coverage confidence; \"\n            f\"{energy['calorie_days']} nutrition days and {energy['weight_days']} weight days).\"\n        )\n''',
+              '''        observations.append(\n            \"Canonical multi-window energy estimate: \"\n            f\"planning maintenance about {energy['estimated_tdee']:.0f} kcal/day, \"\n            f\"with an estimated current deficit of {energy['estimated_deficit']:.0f} kcal/day. \"\n            f\"28/42-day agreement is {energy.get('tdee_agreement', 'n/a')}; \"\n            f\"28-day coverage is {energy.get('coverage_summary', energy.get('coverage_confidence', 'n/a'))}.\"\n        )\n''',
+              "energy interpretation text",
+          )
+          text = replace_once(
+              text,
+              '''        f\"Rolling 28-day estimated maintenance: {_num(energy.get('estimated_tdee'), 0, ' kcal/day')}\",\n        f\"Rolling 28-day estimated calorie deficit: {_num(energy.get('estimated_deficit'), 0, ' kcal/day')}\",\n        f\"Energy-balance coverage confidence: {energy.get('coverage_confidence', 'LOW')}\",\n''',
+              '''        f\"Canonical planning maintenance: {_num(energy.get('estimated_tdee'), 0, ' kcal/day')}\",\n        f\"Canonical estimated calorie deficit: {_num(energy.get('estimated_deficit'), 0, ' kcal/day')}\",\n        f\"28/42-day TDEE agreement: {energy.get('tdee_agreement', 'n/a')}\",\n        f\"Energy-model source: {energy.get('energy_source', 'n/a')}\",\n''',
+              "personal trend energy labels",
+          )
+          text = replace_once(
+              text,
+              '            "The rolling maintenance/TDEE estimate is inferred from the 28-day scale-weight trend plus logged calorie intake using 7,700 kcal per kg as an energy-balance approximation. Water/glycogen shifts and food-logging error can materially move the estimate, so use it as a multi-week planning signal rather than a metabolic measurement.",\n',
+              '            "Maintenance/TDEE comes from the canonical adaptive energy model, which compares 28- and 42-day scale-weight/intake estimates and reports their agreement. The local 28-day calculation is retained only as a fallback. Water/glycogen shifts and food-logging error can materially move the estimate, so use it as a multi-week planning signal rather than a metabolic measurement.",\n',
+              "method note",
+          )
+          p.write_text(text, encoding="utf-8")
+          PY
+      - name: Compile cleaned scripts
+        run: python -m py_compile scripts/74_lean_mass_preservation.py scripts/75_personal_response_analysis.py
+      - name: Install weekly dependencies
+        run: pip install -r weekly_requirements.txt
+      - name: Refresh current sources
+        env:
+          WITHINGS_DATABASE_URL: ${{ secrets.WITHINGS_DATABASE_URL }}
+          GOOGLE_HEALTH_CLIENT_ID: ${{ secrets.GOOGLE_HEALTH_CLIENT_ID }}
+          GOOGLE_HEALTH_CLIENT_SECRET: ${{ secrets.GOOGLE_HEALTH_CLIENT_SECRET }}
+          GOOGLE_HEALTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_HEALTH_REFRESH_TOKEN }}
+          HEVY_API_KEY: ${{ secrets.HEVY_API_KEY }}
+        run: python scripts/05_refresh_current_sources.py
+      - name: Run full coaching stack
+        env:
+          WITHINGS_DATABASE_URL: ${{ secrets.WITHINGS_DATABASE_URL }}
+        run: python scripts/100_run_weekly_coaching_stack.py
+      - name: Verify aligned outputs
+        run: |
+          grep -E "Minimum before personalized associations: 12|Results are withheld unless at least 12" reports/personal_response_analysis.txt
+          grep -E "Canonical planning maintenance:|Canonical estimated calorie deficit:|28/42-day TDEE agreement:|Energy-model source:" reports/lean_mass_preservation.txt
+      - name: Commit cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/74_lean_mass_preservation.py scripts/75_personal_response_analysis.py
+          git commit -m "Align coaching thresholds and energy model"
+          git pull --rebase origin main
+          git push origin HEAD:main
