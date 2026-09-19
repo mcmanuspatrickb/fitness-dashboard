@@ -17,6 +17,8 @@ LOG_PATH = REPORTS_DIR / "weekly_coaching_stack_log.txt"
 # data is available, then generates the routine fat-loss / muscle-preservation
 # coaching outputs. Fasting analysis remains available as an on-demand tool,
 # but it is intentionally not part of the automatic weekly decision path.
+# Personal-response evidence is built before the adaptive calorie model so the
+# calorie decision always sees the newest qualifying historical blocks.
 PIPELINE = [
     ("20_build_clean_interventions.py", "Build clean interventions"),
     ("21_build_clean_body_composition.py", "Build clean body composition"),
@@ -29,9 +31,9 @@ PIPELINE = [
     ("41_build_historical_daily_metrics.py", "Build analytics.historical_daily_metrics"),
     ("71_strength_progress_analysis.py", "Build strength progress analysis"),
     ("72_strength_adjusted_coaching.py", "Build strength-adjusted coaching"),
+    ("75_personal_response_analysis.py", "Build personal response analysis"),
     ("73_adaptive_calorie_recommendation.py", "Build adaptive calorie recommendation"),
     ("74_lean_mass_preservation.py", "Build lean-mass preservation analysis"),
-    ("75_personal_response_analysis.py", "Build personal response analysis"),
     ("80_weekly_coaching_report.py", "Build weekly coaching report"),
     ("81_build_weekly_coaching_packet.py", "Build weekly coaching packet"),
 ]
