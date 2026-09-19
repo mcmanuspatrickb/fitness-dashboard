@@ -14,7 +14,9 @@ LOG_PATH = REPORTS_DIR / "weekly_coaching_stack_log.txt"
 
 # Raw source refresh happens separately in 05_refresh_current_sources.py.
 # This stack rebuilds the clean/analytics layers from whatever current source
-# data is available, then generates the coaching outputs.
+# data is available, then generates the routine fat-loss / muscle-preservation
+# coaching outputs. Fasting analysis remains available as an on-demand tool,
+# but it is intentionally not part of the automatic weekly decision path.
 PIPELINE = [
     ("20_build_clean_interventions.py", "Build clean interventions"),
     ("21_build_clean_body_composition.py", "Build clean body composition"),
@@ -29,7 +31,6 @@ PIPELINE = [
     ("72_strength_adjusted_coaching.py", "Build strength-adjusted coaching"),
     ("73_adaptive_calorie_recommendation.py", "Build adaptive calorie recommendation"),
     ("74_lean_mass_preservation.py", "Build lean-mass preservation analysis"),
-    ("70_should_i_fast.py", "Build fast decision"),
     ("80_weekly_coaching_report.py", "Build weekly coaching report"),
     ("81_build_weekly_coaching_packet.py", "Build weekly coaching packet"),
 ]
