@@ -19,6 +19,8 @@ LOG_PATH = REPORTS_DIR / "weekly_coaching_stack_log.txt"
 # but it is intentionally not part of the automatic weekly decision path.
 # Personal-response evidence is built before the adaptive calorie model so the
 # calorie decision always sees the newest qualifying historical blocks.
+# The feedback step then evaluates prior calorie decisions and logs the current
+# one before the packet is assembled.
 PIPELINE = [
     ("20_build_clean_interventions.py", "Build clean interventions"),
     ("21_build_clean_body_composition.py", "Build clean body composition"),
@@ -33,6 +35,7 @@ PIPELINE = [
     ("72_strength_adjusted_coaching.py", "Build strength-adjusted coaching"),
     ("75_personal_response_analysis.py", "Build personal response analysis"),
     ("73_adaptive_calorie_recommendation.py", "Build adaptive calorie recommendation"),
+    ("76_adaptive_coaching_feedback.py", "Update adaptive coaching feedback loop"),
     ("74_lean_mass_preservation.py", "Build lean-mass preservation analysis"),
     ("80_weekly_coaching_report.py", "Build weekly coaching report"),
     ("81_build_weekly_coaching_packet.py", "Build weekly coaching packet"),
