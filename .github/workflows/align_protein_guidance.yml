@@ -1,0 +1,58 @@
+name: Align Protein Guidance
+
+on:
+  push:
+    paths:
+      - ".github/workflows/align_protein_guidance.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  align:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Align report language
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          p72 = Path("scripts/72_strength_adjusted_coaching.py")
+          text = p72.read_text(encoding="utf-8")
+          old = '''    if pd.notna(row["recent_protein"]) and row["recent_protein"] >= 120:
+                  notes.append("Protein intake is supportive for muscle retention and performance.")
+              elif pd.notna(row["recent_protein"]) and row["recent_protein"] < 110:
+                  notes.append("Protein is a little light for your current goal.")
+                  recommendations.append("Push protein toward 120–140 g/day.")
+          '''
+          new = '''    if pd.notna(row["recent_protein"]):
+                  notes.append(
+                      f"Protein averages {float(row['recent_protein']):.0f} g/day; use the Lean-Mass Preservation section for the current personalized protein target."
+                  )
+          '''
+          if old not in text:
+              raise SystemExit("72 protein block not found")
+          p72.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          p70 = Path("scripts/70_should_i_fast.py")
+          text = p70.read_text(encoding="utf-8")
+          old = '''    if pd.notna(row["recent_protein"]) and row["recent_protein"] >= 110:
+                  reasons_for.append("Protein looks adequate for a well-controlled prep state.")
+          '''
+          if old not in text:
+              raise SystemExit("70 protein block not found")
+          p70.write_text(text.replace(old, "", 1), encoding="utf-8")
+          PY
+      - name: Compile changed scripts
+        run: python -m py_compile scripts/70_should_i_fast.py scripts/72_strength_adjusted_coaching.py
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/70_should_i_fast.py scripts/72_strength_adjusted_coaching.py
+          git commit -m "Align protein guidance with lean-mass target"
+          git push
