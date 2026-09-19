@@ -1,0 +1,9 @@
+{
+  "mode": "cut",
+  "auto_transition": false,
+  "target_weight_kg": null,
+  "target_body_fat_pct": null,
+  "maintenance_band_kcal": 100,
+  "lean_gain_surplus_kcal": 150,
+  "notes": "Phase changes are explicit. The detector may suggest reviewing the phase, but it will not automatically switch from cut to maintenance or lean_gain."
+}
