@@ -31,6 +31,7 @@ PIPELINE = [
     ("72_strength_adjusted_coaching.py", "Build strength-adjusted coaching"),
     ("73_adaptive_calorie_recommendation.py", "Build adaptive calorie recommendation"),
     ("74_lean_mass_preservation.py", "Build lean-mass preservation analysis"),
+    ("75_personal_response_analysis.py", "Build personal response analysis"),
     ("80_weekly_coaching_report.py", "Build weekly coaching report"),
     ("81_build_weekly_coaching_packet.py", "Build weekly coaching packet"),
 ]
