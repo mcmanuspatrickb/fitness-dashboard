@@ -13,6 +13,7 @@ SOURCE_FILES = {
     "weekly_report": REPORTS_DIR / "weekly_coaching_report.txt",
     "strength_adjusted": REPORTS_DIR / "strength_adjusted_coaching.txt",
     "calorie_recommendation": REPORTS_DIR / "adaptive_calorie_recommendation.txt",
+    "adaptive_feedback": REPORTS_DIR / "adaptive_coaching_feedback.txt",
     "lean_mass_preservation": REPORTS_DIR / "lean_mass_preservation.txt",
     "personal_response": REPORTS_DIR / "personal_response_analysis.txt",
     "strength_analysis": REPORTS_DIR / "strength_progress_analysis.txt",
@@ -92,6 +93,7 @@ def main() -> None:
     weekly_report = read_text(SOURCE_FILES["weekly_report"])
     strength_adjusted = read_text(SOURCE_FILES["strength_adjusted"])
     calorie_reco = read_text(SOURCE_FILES["calorie_recommendation"])
+    adaptive_feedback = read_text(SOURCE_FILES["adaptive_feedback"])
     lean_mass_report = read_text(SOURCE_FILES["lean_mass_preservation"])
     personal_response = read_text(SOURCE_FILES["personal_response"])
     strength_analysis = read_text(SOURCE_FILES["strength_analysis"])
@@ -115,6 +117,11 @@ def main() -> None:
 
     calorie_action = extract_section_by_heading_lines(calorie_reco, "Recommendation")
     calorie_why = extract_section_by_heading_lines(calorie_reco, "Why")
+
+    feedback_current = extract_section_by_heading_lines(adaptive_feedback, "Current Decision")
+    feedback_learning = extract_section_by_heading_lines(adaptive_feedback, "Learning Status")
+    feedback_recent = extract_section_by_heading_lines(adaptive_feedback, "Recent Evaluations")
+    feedback_method = extract_section_by_heading_lines(adaptive_feedback, "Method Note")
 
     lean_personal_trend = extract_section_by_heading_lines(lean_mass_report, "Personal Trend")
     lean_interpretation = extract_section_by_heading_lines(lean_mass_report, "Interpretation")
@@ -219,6 +226,31 @@ def main() -> None:
         lines.append(personal_method)
     if not any([personal_training_active, personal_associations, personal_signals, personal_method]):
         lines.append("No personal-response analysis is available yet.")
+    lines.append("")
+
+    lines.append("Adaptive Coaching Feedback")
+    lines.append("--------------------------")
+    if feedback_current:
+        lines.append("Current Decision")
+        lines.append("----------------")
+        lines.append(feedback_current)
+        lines.append("")
+    if feedback_learning:
+        lines.append("Learning Status")
+        lines.append("---------------")
+        lines.append(feedback_learning)
+        lines.append("")
+    if feedback_recent:
+        lines.append("Recent Evaluations")
+        lines.append("------------------")
+        lines.append(feedback_recent)
+        lines.append("")
+    if feedback_method:
+        lines.append("Method Note")
+        lines.append("-----------")
+        lines.append(feedback_method)
+    if not any([feedback_current, feedback_learning, feedback_recent, feedback_method]):
+        lines.append("No adaptive coaching feedback is available yet.")
     lines.append("")
 
     lines.append("Body Composition and Recovery")
