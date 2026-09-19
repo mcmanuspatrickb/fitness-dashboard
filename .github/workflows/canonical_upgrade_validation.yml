@@ -58,6 +58,7 @@ jobs:
           git add scripts/73_adaptive_calorie_recommendation.py scripts/76_adaptive_coaching_feedback.py
           if ! git diff --cached --quiet; then
             git commit -m "Use multi-window TDEE and longer feedback horizon"
+            git stash push -u -m "generated validation outputs" || true
             git pull --rebase origin main
             git push origin HEAD:main
           fi
