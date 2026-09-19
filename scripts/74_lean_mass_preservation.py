@@ -17,6 +17,7 @@ OUT_PATH = REPORTS_DIR / "lean_mass_preservation.txt"
 # framed as a coaching heuristic rather than a medical prescription.
 PROTEIN_LOW_PER_KG_LEAN = 1.8
 PROTEIN_HIGH_PER_KG_LEAN = 2.2
+ENERGY_KCAL_PER_KG = 7700.0
 
 
 def _num(value: Any, decimals: int = 1, suffix: str = "") -> str:
@@ -38,11 +39,82 @@ def _strength_summary(strength_4w: list[dict[str, Any]]) -> tuple[int, int, int]
     return up, flat, down
 
 
+def _rolling_energy_balance(frame: pd.DataFrame, recent_weight: float | None) -> dict[str, Any]:
+    """Estimate recent maintenance from intake plus the 28-day weight trend.
+
+    This deliberately uses the scale-weight trend rather than BIA fat/lean
+    compartments. Short-term BIA changes are too hydration-sensitive to use as
+    an energy accounting system. The estimate is therefore a planning signal,
+    not a metabolic measurement.
+    """
+    result = {
+        "estimated_tdee": None,
+        "estimated_deficit": None,
+        "weight_slope_kg_day": None,
+        "weight_loss_pct_week": None,
+        "avg_calories": None,
+        "calorie_days": 0,
+        "weight_days": 0,
+        "coverage_confidence": "LOW",
+    }
+    if frame is None or frame.empty:
+        return result
+
+    data = frame.copy()
+    data["date"] = pd.to_datetime(data.get("date"), errors="coerce")
+    data["weight_kg"] = pd.to_numeric(data.get("weight_kg"), errors="coerce")
+    data["calories"] = pd.to_numeric(data.get("calories"), errors="coerce")
+
+    calorie_values = data["calories"].dropna()
+    weights = data[["date", "weight_kg"]].dropna().sort_values("date")
+    result["calorie_days"] = int(calorie_values.count())
+    result["weight_days"] = int(len(weights))
+    result["avg_calories"] = (
+        float(calorie_values.mean()) if not calorie_values.empty else None
+    )
+
+    if result["calorie_days"] >= 25 and result["weight_days"] >= 20:
+        result["coverage_confidence"] = "HIGH"
+    elif result["calorie_days"] >= 21 and result["weight_days"] >= 12:
+        result["coverage_confidence"] = "MEDIUM"
+
+    if result["calorie_days"] < 21 or result["weight_days"] < 12:
+        return result
+
+    first_date = weights["date"].min()
+    x = (weights["date"] - first_date).dt.total_seconds() / 86400.0
+    y = weights["weight_kg"].astype(float)
+    x_centered = x - x.mean()
+    denominator = float((x_centered ** 2).sum())
+    if denominator <= 0:
+        return result
+
+    slope = float((x_centered * (y - y.mean())).sum() / denominator)
+    avg_calories = float(result["avg_calories"])
+    estimated_tdee = avg_calories - slope * ENERGY_KCAL_PER_KG
+    estimated_deficit = estimated_tdee - avg_calories
+
+    # Reject obviously implausible outputs caused by water shifts or bad data.
+    if not 1200 <= estimated_tdee <= 5000:
+        result["weight_slope_kg_day"] = slope
+        return result
+
+    result["weight_slope_kg_day"] = slope
+    result["estimated_tdee"] = estimated_tdee
+    result["estimated_deficit"] = estimated_deficit
+    if recent_weight is not None and not pd.isna(recent_weight) and float(recent_weight) > 0:
+        result["weight_loss_pct_week"] = (
+            -slope * 7.0 / float(recent_weight) * 100.0
+        )
+    return result
+
+
 def main() -> None:
     context = load_report_context()
     weekly = context.get("weekly", {})
     trend = context.get("trend_4w", {})
     strength_4w = context.get("strength_4w", [])
+    trailing_28 = context.get("trailing_28", pd.DataFrame())
     end_date = context.get("analysis_end_date")
 
     recent_weight = weekly.get("recent_weight")
@@ -59,6 +131,8 @@ def main() -> None:
     avg_sleep_28 = trend.get("avg_sleep")
     workouts_28 = trend.get("workouts")
 
+    energy = _rolling_energy_balance(trailing_28, recent_weight)
+
     protein_per_kg_lean = None
     protein_low = None
     protein_high = None
@@ -68,6 +142,10 @@ def main() -> None:
         if recent_protein is not None and not pd.isna(recent_protein):
             protein_per_kg_lean = float(recent_protein) / float(recent_lean)
 
+    # The trend compares the mean of days 1-7 with the mean of days 22-28.
+    # Their midpoints are 21 days apart, so this is a three-week trend interval,
+    # not four full weeks. Use that interval when translating the change to a
+    # weekly percentage.
     weekly_weight_loss_pct = None
     if (
         recent_weight is not None
@@ -76,7 +154,22 @@ def main() -> None:
         and weight_delta_4w is not None
         and not pd.isna(weight_delta_4w)
     ):
-        weekly_weight_loss_pct = abs(float(weight_delta_4w)) / float(recent_weight) / 4.0 * 100.0
+        weekly_weight_loss_pct = (
+            -float(weight_delta_4w) / float(recent_weight) / 3.0 * 100.0
+        )
+
+    fat_share_of_loss = None
+    if (
+        weight_delta_4w is not None
+        and fat_delta_4w is not None
+        and not pd.isna(weight_delta_4w)
+        and not pd.isna(fat_delta_4w)
+        and float(weight_delta_4w) < -0.2
+        and float(fat_delta_4w) < 0
+    ):
+        fat_share_of_loss = (
+            abs(float(fat_delta_4w)) / abs(float(weight_delta_4w)) * 100.0
+        )
 
     calorie_vs_28_pct = None
     if (
@@ -101,6 +194,10 @@ def main() -> None:
         observations.append(
             f"Over the four-week comparison window, fat mass changed by {float(fat_delta_4w):+.2f} kg and BIA-estimated lean mass by {float(lean_delta_4w):+.2f} kg."
         )
+        if fat_share_of_loss is not None:
+            observations.append(
+                f"BIA-estimated fat loss accounts for about {fat_share_of_loss:.0f}% of the scale-weight reduction across those smoothed comparison windows. Treat this as a trend indicator, not a tissue-balance measurement."
+            )
         if float(fat_delta_4w) < 0 and float(lean_delta_4w) < -0.5:
             observations.append(
                 "That is a lean-mass preservation watch signal. Withings body composition is BIA, so hydration and glycogen can move the lean-mass estimate; treat the multi-week trend together with strength rather than as direct proof of muscle loss."
@@ -115,19 +212,35 @@ def main() -> None:
                 "The positive strength trend is reassuring and argues against interpreting all of the BIA lean-mass decline as true contractile muscle loss."
             )
 
-    if weekly_weight_loss_pct is not None:
-        if weekly_weight_loss_pct > 0.75:
+    pace = energy.get("weight_loss_pct_week")
+    if pace is None:
+        pace = weekly_weight_loss_pct
+    if pace is not None:
+        if pace > 0.75:
             observations.append(
-                f"Average four-week scale-loss pace is about {weekly_weight_loss_pct:.2f}% of body weight per week, which is relatively aggressive for a muscle-preservation goal."
+                f"Recent scale-loss pace is about {pace:.2f}% of body weight per week, which is relatively aggressive for a muscle-preservation goal."
             )
-        elif weekly_weight_loss_pct >= 0.25:
+        elif pace >= 0.25:
             observations.append(
-                f"Average four-week scale-loss pace is about {weekly_weight_loss_pct:.2f}% of body weight per week, a moderate pace; the main focus can stay on protein, recovery, and training quality rather than accelerating the deficit."
+                f"Recent scale-loss pace is about {pace:.2f}% of body weight per week, a moderate pace; the main focus can stay on protein, recovery, and training quality rather than accelerating the deficit."
+            )
+        elif pace > 0:
+            observations.append(
+                f"Recent scale-loss pace is about {pace:.2f}% of body weight per week."
             )
         else:
             observations.append(
-                f"Average four-week scale-loss pace is about {weekly_weight_loss_pct:.2f}% of body weight per week."
+                f"Recent 28-day weight trend is approximately {pace:.2f}% of body weight per week; the scale is not currently trending downward."
             )
+
+    if energy.get("estimated_tdee") is not None:
+        observations.append(
+            "Rolling 28-day energy-balance estimate: "
+            f"maintenance about {energy['estimated_tdee']:.0f} kcal/day, "
+            f"with an estimated average deficit of {energy['estimated_deficit']:.0f} kcal/day "
+            f"({energy['coverage_confidence']} coverage confidence; "
+            f"{energy['calorie_days']} nutrition days and {energy['weight_days']} weight days)."
+        )
 
     if protein_per_kg_lean is not None:
         observations.append(
@@ -169,7 +282,18 @@ def main() -> None:
             f"Sleep averages about {float(sleep_reference):.1f} h/night; getting closer to 7+ hours where practical is a useful recovery lever for preserving training quality."
         )
 
+    estimated_deficit = energy.get("estimated_deficit")
     if (
+        estimated_deficit is not None
+        and estimated_deficit > 750
+        and lean_delta_4w is not None
+        and not pd.isna(lean_delta_4w)
+        and float(lean_delta_4w) < -0.5
+    ):
+        suggestions.append(
+            "Do not make the calorie deficit larger right now. The rolling energy-balance estimate is already substantial while BIA lean mass is trending down; first improve protein/recovery consistency and watch the next 2-3 weeks of lean-mass and strength data."
+        )
+    elif (
         calorie_vs_28_pct is not None
         and calorie_vs_28_pct <= -10.0
         and lean_delta_4w is not None
@@ -179,7 +303,7 @@ def main() -> None:
         suggestions.append(
             "Do not push calories lower right now. The current week is already materially below the 28-day calorie average while BIA lean mass is trending down; hold the deficit steady and watch the next 2-3 weeks of lean-mass, strength, sleep, and protein data together."
         )
-    elif weekly_weight_loss_pct is not None and weekly_weight_loss_pct > 0.75:
+    elif pace is not None and pace > 0.75:
         suggestions.append(
             "Consider easing the calorie deficit rather than increasing it further if the faster loss rate persists, especially if strength or recovery starts to decline."
         )
@@ -194,6 +318,11 @@ def main() -> None:
         f"4-week weight change: {_num(weight_delta_4w, 2, ' kg')}",
         f"4-week fat-mass change: {_num(fat_delta_4w, 2, ' kg')}",
         f"4-week BIA lean-mass change: {_num(lean_delta_4w, 2, ' kg')}",
+        f"BIA-estimated fat share of weight loss: {_num(fat_share_of_loss, 0, '%')}",
+        f"Recent weight-loss pace: {_num(pace, 2, '% of body weight/week')}",
+        f"Rolling 28-day estimated maintenance: {_num(energy.get('estimated_tdee'), 0, ' kcal/day')}",
+        f"Rolling 28-day estimated calorie deficit: {_num(energy.get('estimated_deficit'), 0, ' kcal/day')}",
+        f"Energy-balance coverage confidence: {energy.get('coverage_confidence', 'LOW')}",
         f"Current estimated lean mass: {_num(recent_lean, 1, ' kg')}",
         f"Current 7-day protein: {_num(recent_protein, 0, ' g/day')}",
         f"28-day protein: {_num(avg_protein_28, 0, ' g/day')}",
@@ -212,6 +341,7 @@ def main() -> None:
             "Method Note",
             "-----------",
             "Lean mass here is the Withings BIA estimate, not a direct muscle measurement. The report therefore cross-checks it against multi-week strength, protein, calorie, sleep, and training trends before suggesting changes.",
+            "The rolling maintenance/TDEE estimate is inferred from the 28-day scale-weight trend plus logged calorie intake using 7,700 kcal per kg as an energy-balance approximation. Water/glycogen shifts and food-logging error can materially move the estimate, so use it as a multi-week planning signal rather than a metabolic measurement.",
             "The protein range is a practical coaching heuristic for a resistance-trained calorie deficit, not an individualized medical prescription.",
         ]
     )
