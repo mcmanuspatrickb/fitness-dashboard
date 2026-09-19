@@ -17,6 +17,7 @@ BLOCK_DAYS = 14
 MIN_BODY_DAYS = 6
 MIN_NUTRITION_DAYS = 10
 MIN_BLOCKS_FOR_ASSOCIATION = 8
+MIN_WORKOUTS_FOR_TRAINING_ACTIVE = 2
 
 
 def _slope_change(frame: pd.DataFrame, column: str) -> float | None:
@@ -164,14 +165,27 @@ def main() -> None:
             (usable["fat_change_kg"] < 0)
             & (usable["lean_change_kg"] >= -0.30)
         ].copy()
+        training_active = blocks[
+            pd.to_numeric(blocks["workouts"], errors="coerce").fillna(0)
+            >= MIN_WORKOUTS_FOR_TRAINING_ACTIVE
+        ].copy()
+        active_usable = training_active.dropna(
+            subset=["fat_change_kg", "lean_change_kg"]
+        ).copy()
+        active_compatible = active_usable[
+            (active_usable["fat_change_kg"] < 0)
+            & (active_usable["lean_change_kg"] >= -0.30)
+        ].copy()
 
         lines.extend(
             [
                 f"Blocks with both fat and lean outcome estimates: {len(usable)}",
                 f"Blocks with fat down and BIA lean change >= -0.30 kg: {len(compatible)}",
+                f"Training-active blocks (>= {MIN_WORKOUTS_FOR_TRAINING_ACTIVE} resistance workouts / 14d): {len(training_active)}",
+                f"Training-active blocks compatible with the current goal: {len(active_compatible)}",
                 "",
-                "Typical qualifying block",
-                "------------------------",
+                "All qualifying historical blocks",
+                "--------------------------------",
                 f"Calories: {_fmt(blocks['avg_calories'].median(), 0)} kcal/day",
                 f"Protein: {_fmt(blocks['avg_protein_g'].median(), 0)} g/day",
                 f"Steps: {_fmt(blocks['avg_steps'].median(), 0)} /day",
@@ -195,6 +209,34 @@ def main() -> None:
                 ]
             )
 
+        if not training_active.empty:
+            lines.extend(
+                [
+                    "",
+                    "Training-active periods",
+                    "-----------------------",
+                    "This is the more relevant cohort for a muscle-preservation goal because periods with little or no resistance training are excluded.",
+                    f"Median calories: {_fmt(training_active['avg_calories'].median(), 0)} kcal/day",
+                    f"Median protein: {_fmt(training_active['avg_protein_g'].median(), 0)} g/day",
+                    f"Median steps: {_fmt(training_active['avg_steps'].median(), 0)} /day",
+                    f"Median sleep: {_fmt(training_active['avg_sleep_h'].median(), 1)} h/night",
+                    f"Median workouts: {_fmt(training_active['workouts'].median(), 0)} per 14 days",
+                ]
+            )
+            if not active_compatible.empty:
+                lines.extend(
+                    [
+                        "",
+                        "Training-active periods compatible with the goal",
+                        "------------------------------------------------",
+                        f"Median calories: {_fmt(active_compatible['avg_calories'].median(), 0)} kcal/day",
+                        f"Median protein: {_fmt(active_compatible['avg_protein_g'].median(), 0)} g/day",
+                        f"Median steps: {_fmt(active_compatible['avg_steps'].median(), 0)} /day",
+                        f"Median sleep: {_fmt(active_compatible['avg_sleep_h'].median(), 1)} h/night",
+                        f"Median workouts: {_fmt(active_compatible['workouts'].median(), 0)} per 14 days",
+                    ]
+                )
+
         predictors = [
             ("avg_protein_g", "Protein"),
             ("avg_calories", "Calories"),
@@ -209,14 +251,14 @@ def main() -> None:
                 "",
                 "Exploratory associations",
                 "------------------------",
-                "Positive fat-loss correlation means higher values tended to accompany more BIA fat loss; positive lean-retention correlation means higher values tended to accompany better BIA lean retention.",
+                f"Associations below use only training-active periods (>= {MIN_WORKOUTS_FOR_TRAINING_ACTIVE} resistance workouts / 14d). Positive fat-loss correlation means higher values tended to accompany more BIA fat loss; positive lean-retention correlation means higher values tended to accompany better BIA lean retention.",
             ]
         )
 
         associations = []
         for column, label in predictors:
-            fat_r, fat_n = _spearman(blocks, column, "fat_loss_kg")
-            lean_r, lean_n = _spearman(blocks, column, "lean_retention_kg")
+            fat_r, fat_n = _spearman(training_active, column, "fat_loss_kg")
+            lean_r, lean_n = _spearman(training_active, column, "lean_retention_kg")
             associations.append((label, fat_r, fat_n, lean_r, lean_n))
             lines.append(
                 f"- {label}: fat-loss r={_fmt(fat_r)} (n={fat_n}); lean-retention r={_fmt(lean_r)} (n={lean_n})"
@@ -247,7 +289,7 @@ def main() -> None:
             "-----------",
             f"Blocks are non-overlapping {BLOCK_DAYS}-day calendar periods and require at least {MIN_BODY_DAYS} body-composition days and {MIN_NUTRITION_DAYS} complete nutrition days.",
             "Body outcomes use a within-block linear trend rather than first/last single readings to reduce day-to-day noise.",
-            f"Associations are reported only with at least {MIN_BLOCKS_FOR_ASSOCIATION} comparable blocks and use Spearman rank correlation. They should be treated as hypotheses to test, not prescriptions.",
+            f"Associations are reported only with at least {MIN_BLOCKS_FOR_ASSOCIATION} training-active comparable blocks and use Spearman rank correlation. They should be treated as hypotheses to test, not prescriptions.",
         ]
     )
 
