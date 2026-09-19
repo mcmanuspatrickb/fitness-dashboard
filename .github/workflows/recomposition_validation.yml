@@ -38,3 +38,4 @@ jobs:
           cat reports/lean_mass_preservation.txt
           echo ""
           cat reports/personal_response_analysis.txt
+          echo "Validation complete without scipy dependency."
