@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from html import escape
 from pathlib import Path
 from typing import Any
@@ -12,12 +13,25 @@ from report_context import load_report_context
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 REPORTS_DIR = PROJECT_ROOT / "reports"
-REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-
-FRESHNESS_JSON = REPORTS_DIR / "data_freshness.json"
-LEAN_MASS_REPORT = REPORTS_DIR / "lean_mass_preservation.txt"
 OUTPUT_TXT = REPORTS_DIR / "weekly_coaching_summary.txt"
 OUTPUT_HTML = REPORTS_DIR / "weekly_coaching_summary.html"
+FRESHNESS_JSON = REPORTS_DIR / "data_freshness.json"
+
+REPORT_FILES = {
+    "phase": REPORTS_DIR / "phase_detection.txt",
+    "guardrail": REPORTS_DIR / "cut_stress_guardrail.txt",
+    "calorie": REPORTS_DIR / "adaptive_calorie_recommendation.txt",
+    "feedback": REPORTS_DIR / "adaptive_coaching_feedback.txt",
+    "lean": REPORTS_DIR / "lean_mass_preservation.txt",
+    "weekly": REPORTS_DIR / "weekly_coaching_report.txt",
+}
+
+
+def _read(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8").strip() if path.exists() else ""
+    except Exception:
+        return ""
 
 
 def _freshness() -> dict[str, Any]:
@@ -29,125 +43,98 @@ def _freshness() -> dict[str, Any]:
         return {"overall_status": "unknown", "checks": {}}
 
 
-def _lean_mass_text() -> str:
-    if not LEAN_MASS_REPORT.exists():
-        return ""
-    try:
-        return LEAN_MASS_REPORT.read_text(encoding="utf-8").strip()
-    except Exception:
-        return ""
+def _line(text: str, prefix: str) -> str:
+    for line in text.splitlines():
+        if line.strip().lower().startswith(prefix.lower()):
+            return line.strip()
+    return ""
 
 
-def _num(value: Any, decimals: int = 1, suffix: str = "") -> str:
+def _section(text: str, heading: str) -> str:
+    if not text:
+        return ""
+    lines = text.splitlines()
+    for i, line in enumerate(lines[:-1]):
+        underline = lines[i + 1].strip()
+        if line.strip() == heading and underline and set(underline) <= {"-", "="}:
+            start = i + 2
+            end = len(lines)
+            for j in range(start, len(lines) - 1):
+                nxt = lines[j + 1].strip()
+                if lines[j].strip() and nxt and set(nxt) <= {"-", "="}:
+                    end = j
+                    break
+            return "\n".join(lines[start:end]).strip()
+    return ""
+
+
+def _num(value: Any, digits: int = 1, suffix: str = "") -> str:
     if value is None or pd.isna(value):
         return "n/a"
-    return f"{float(value):.{decimals}f}{suffix}"
+    return f"{float(value):.{digits}f}{suffix}"
 
 
-def _observations(weekly: dict[str, Any], status: str) -> list[str]:
+def _compact_bullets(text: str, limit: int = 4) -> list[str]:
+    items = []
+    for line in text.splitlines():
+        cleaned = line.strip()
+        if cleaned.startswith("- "):
+            cleaned = cleaned[2:].strip()
+        if cleaned and cleaned not in items:
+            items.append(cleaned)
+    return items[:limit]
+
+
+def _extract_adjustment(calorie_text: str) -> str:
+    action = _line(calorie_text, "Action:")
+    adjustment = _line(calorie_text, "Calorie adjustment:")
+    target = _line(calorie_text, "model target intake:")
+    maintenance = _line(calorie_text, "rolling 28-day estimated maintenance:")
+    return " | ".join(x for x in [action, adjustment, target, maintenance] if x)
+
+
+def _build(status: str) -> tuple[str, str]:
+    context = load_report_context()
+    latest_date = context.get("analysis_end_date")
+    weekly = context.get("weekly", {})
+    trend = context.get("trend_4w", {})
+    strength = context.get("strength_4w", [])
+    performance = context.get("performance", {})
+    texts = {key: _read(path) for key, path in REPORT_FILES.items()}
+
     if status == "stale":
-        return ["Current source data is too stale for a trustworthy weekly coaching interpretation."]
-
-    observations: list[str] = []
-    if weekly.get("weight_delta") is not None:
-        observations.append(
-            f"Seven-day average weight changed by {weekly['weight_delta']:+.2f} kg versus the prior seven days."
+        text = (
+            "WEEKLY COACHING SUMMARY\n"
+            "=======================\n\n"
+            "Data status: STALE\n"
+            "Current source data is too stale for a trustworthy coaching recommendation. "
+            "Review the attached freshness and source-refresh diagnostics before using the plan.\n"
         )
-    if weekly.get("fat_delta") is not None:
-        observations.append(
-            f"Seven-day average fat mass changed by {weekly['fat_delta']:+.2f} kg versus the prior seven days."
-        )
-    if weekly.get("recent_steps") is not None:
-        observations.append(f"Average daily steps: {weekly['recent_steps']:.0f}.")
-    if weekly.get("recent_sleep") is not None:
-        observations.append(f"Average sleep: {weekly['recent_sleep']:.1f} hours/night.")
-    if weekly.get("recent_workouts") is not None:
-        observations.append(f"Workouts recorded in the seven-day window: {weekly['recent_workouts']:.0f}.")
-    return observations or ["Not enough current data was available for additional observations."]
+        html = "<html><body><h2>Weekly Coaching Summary</h2><p><strong>Data status: STALE.</strong> Current source data is too stale for a trustworthy coaching recommendation. Review the attached diagnostics.</p></body></html>"
+        return text, html
 
+    phase = _line(texts["phase"], "current phase:") or "current phase: n/a"
+    phase_suggestion = _line(texts["phase"], "suggestion:")
+    guardrail = _line(texts["guardrail"], "status:") or "status: n/a"
+    guardrail_interpretation = _line(texts["guardrail"], "interpretation:")
+    calorie_summary = _extract_adjustment(texts["calorie"])
+    feedback_learning = _section(texts["feedback"], "Learning Status")
+    feedback_recent = _section(texts["feedback"], "Recent Evaluations")
+    lean_interpretation = _section(texts["lean"], "Interpretation")
+    next_focus = _compact_bullets(_section(texts["weekly"], "Next Week Focus"), 4)
 
-def _review_items(
-    weekly: dict[str, Any], coverage: dict[str, Any], freshness: dict[str, Any]
-) -> list[str]:
-    status = freshness.get("overall_status", "unknown")
-    if status == "stale":
-        return ["Restore current source syncing before using the coaching recommendations."]
+    up = sum(1 for item in strength if item.get("direction") == "up")
+    flat = sum(1 for item in strength if item.get("direction") == "flat")
+    down = sum(1 for item in strength if item.get("direction") == "down")
 
-    items: list[str] = []
-    for name, detail in freshness.get("checks", {}).items():
-        if detail.get("status") != "fresh":
-            items.append(
-                f"Review {name.replace('_', ' ')} data freshness ({detail.get('status', 'unknown')})."
-            )
-
-    if coverage.get("confidence") == "LOW":
-        items.append("Data coverage is low; avoid changing the plan from this week alone.")
-    elif coverage.get("confidence") == "MEDIUM":
-        items.append("Data coverage is moderate; interpret smaller week-to-week changes cautiously.")
-
-    if weekly.get("recent_calories") is None or weekly.get("recent_protein") is None:
-        items.append("Nutrition coverage is incomplete; review the Google Health/Cronometer sync.")
-    if weekly.get("recent_workouts") is None:
-        items.append("Training coverage is incomplete; review the Hevy sync.")
-
-    if not items:
-        items.append("All core source checks are current; compare trends across several weeks before changing the plan.")
-    return items[:4]
-
-
-def _coverage_rows(coverage: dict[str, Any]) -> list[tuple[str, str]]:
-    return [
-        (
-            "Coverage confidence",
-            f"{coverage.get('confidence', 'UNKNOWN')} (coverage-based; not device accuracy)",
-        ),
-        ("Body composition", f"{coverage.get('body_composition_days', 0)}/7 days"),
-        ("Nutrition", f"{coverage.get('nutrition_days', 0)}/7 days"),
-        ("Steps", f"{coverage.get('steps_days', 0)}/7 days"),
-        ("Sleep", f"{coverage.get('sleep_days', 0)}/7 days"),
-        ("Recovery (RHR + HRV)", f"{coverage.get('recovery_days', 0)}/7 days"),
-        ("Training", f"{coverage.get('workouts', 0)} workouts recorded"),
+    marker_lines = [
+        f"Grip: {_num(performance.get('latest_grip_overall_kg'), 1, ' kg')} latest; "
+        f"{performance.get('grip_measurement_count', 0)} measurement(s); "
+        f"trend {_num(performance.get('grip_trend_pct'), 1, '%')}",
+        f"Waist: {_num(performance.get('latest_waist_cm'), 1, ' cm')} latest; "
+        f"change {_num(performance.get('waist_change_cm'), 1, ' cm')}",
     ]
 
-
-def _trend_rows(trend: dict[str, Any]) -> list[tuple[str, str]]:
-    return [
-        ("Weight change: latest 7d avg vs first 7d avg", _num(trend.get("weight_delta"), 2, " kg")),
-        ("Fat-mass change: latest 7d avg vs first 7d avg", _num(trend.get("fat_delta"), 2, " kg")),
-        ("Lean-mass change: latest 7d avg vs first 7d avg", _num(trend.get("lean_delta"), 2, " kg")),
-        ("28-day average calories", _num(trend.get("avg_calories"), 0, " kcal/day")),
-        ("28-day average protein", _num(trend.get("avg_protein"), 0, " g/day")),
-        ("28-day average steps", _num(trend.get("avg_steps"), 0, "/day")),
-        ("28-day average sleep", _num(trend.get("avg_sleep"), 1, " h/night")),
-        ("28-day workouts", _num(trend.get("workouts"), 0)),
-    ]
-
-
-def _strength_lines(strength_4w: list[dict[str, Any]]) -> list[str]:
-    if not strength_4w:
-        return ["Not enough comparable lift observations across the latest and prior four-week windows."]
-    return [
-        (
-            f"{item['label']}: current 4w best {_num(item['current_best_e1rm'], 1, ' kg')} vs "
-            f"prior 4w best {_num(item['prior_best_e1rm'], 1, ' kg')} e1RM; "
-            f"change {item['change_e1rm']:+.1f} kg ({item['direction']}; "
-            f"{item['current_observations']} current / {item['prior_observations']} prior weekly observations)"
-        )
-        for item in strength_4w
-    ]
-
-
-def _build_text(
-    latest_date,
-    status: str,
-    weekly: dict[str, Any],
-    coverage: dict[str, Any],
-    trend: dict[str, Any],
-    strength_4w: list[dict[str, Any]],
-    observations: list[str],
-    review_items: list[str],
-    lean_mass_text: str,
-) -> str:
     lines = [
         "WEEKLY COACHING SUMMARY",
         "=======================",
@@ -155,157 +142,77 @@ def _build_text(
         f"Data status: {status.upper()}",
         f"Latest complete analysis date: {latest_date.isoformat() if latest_date else 'n/a'}",
         "",
-        "7-Day Summary",
-        "-------------",
-        f"Latest weight in reporting window: {_num(weekly.get('latest_weight'), 2, ' kg')}",
-        f"7-day average weight: {_num(weekly.get('recent_weight'), 2, ' kg')}",
-        f"Weight change vs prior 7d: {_num(weekly.get('weight_delta'), 2, ' kg')}",
-        f"7-day average fat mass: {_num(weekly.get('recent_fat'), 2, ' kg')}",
-        f"Fat-mass change vs prior 7d: {_num(weekly.get('fat_delta'), 2, ' kg')}",
-        f"Average calories: {_num(weekly.get('recent_calories'), 0, ' kcal/day')}",
-        f"Average protein: {_num(weekly.get('recent_protein'), 0, ' g/day')}",
-        f"Average steps: {_num(weekly.get('recent_steps'), 0, '/day')}",
-        f"Average sleep: {_num(weekly.get('recent_sleep'), 1, ' h/night')}",
-        f"Average resting HR: {_num(weekly.get('recent_rhr'), 1, ' bpm')}",
-        f"Average HRV: {_num(weekly.get('recent_hrv'), 1, ' ms')}",
-        f"Workouts: {_num(weekly.get('recent_workouts'), 0)}",
+        "COACHING STATUS",
+        "---------------",
+        phase,
+        phase_suggestion,
+        f"recovery guardrail: {guardrail.replace('status:', '').strip()}",
+        guardrail_interpretation,
         "",
-        "Data Quality",
-        "------------",
-    ]
-    lines.extend(f"{label}: {value}" for label, value in _coverage_rows(coverage))
-    lines.extend(["", "4-Week Context", "--------------"])
-    lines.extend(f"{label}: {value}" for label, value in _trend_rows(trend))
-    lines.extend(["", "4-Week Strength Context", "-----------------------"])
-    lines.append("Compares the best e1RM in the latest four weeks with the best e1RM in the prior four weeks.")
-    lines.extend(f"- {item}" for item in _strength_lines(strength_4w))
-    if lean_mass_text:
-        lines.extend(["", lean_mass_text])
-    lines.extend(["", "Observations:"])
-    lines.extend(f"- {item}" for item in observations)
-    lines.extend(["", "Items to review:"])
-    lines.extend(f"- {item}" for item in review_items)
-    lines.append("")
-    return "\n".join(lines)
-
-
-def _html_table(rows: list[tuple[str, str]]) -> str:
-    return "".join(
-        "<tr>"
-        f"<td style='padding:6px 10px;border:1px solid #ddd'><strong>{escape(label)}</strong></td>"
-        f"<td style='padding:6px 10px;border:1px solid #ddd'>{escape(value)}</td>"
-        "</tr>"
-        for label, value in rows
-    )
-
-
-def _build_html(
-    latest_date,
-    status: str,
-    weekly: dict[str, Any],
-    coverage: dict[str, Any],
-    trend: dict[str, Any],
-    strength_4w: list[dict[str, Any]],
-    observations: list[str],
-    review_items: list[str],
-    lean_mass_text: str,
-) -> str:
-    status_message = {
-        "fresh": "All core freshness checks passed.",
-        "partial": "Some current data is available, but one or more source checks need attention.",
-        "stale": "Current source data is too stale for a trustworthy coaching interpretation.",
-    }.get(status, "Freshness could not be fully determined.")
-
-    summary_rows = [
-        ("Latest complete analysis date", latest_date.isoformat() if latest_date else "n/a"),
-        ("Latest weight in reporting window", _num(weekly.get("latest_weight"), 2, " kg")),
-        ("7-day average weight", _num(weekly.get("recent_weight"), 2, " kg")),
-        ("Weight change vs prior 7d", _num(weekly.get("weight_delta"), 2, " kg")),
-        ("7-day average fat mass", _num(weekly.get("recent_fat"), 2, " kg")),
-        ("Fat-mass change vs prior 7d", _num(weekly.get("fat_delta"), 2, " kg")),
-        ("Average calories", _num(weekly.get("recent_calories"), 0, " kcal/day")),
-        ("Average protein", _num(weekly.get("recent_protein"), 0, " g/day")),
-        ("Average steps", _num(weekly.get("recent_steps"), 0, "/day")),
-        ("Average sleep", _num(weekly.get("recent_sleep"), 1, " h/night")),
-        ("Average resting HR", _num(weekly.get("recent_rhr"), 1, " bpm")),
-        ("Average HRV", _num(weekly.get("recent_hrv"), 1, " ms")),
-        ("Workouts", _num(weekly.get("recent_workouts"), 0)),
+        "THIS WEEK'S CALORIE DECISION",
+        "----------------------------",
+        calorie_summary or "No current calorie decision available.",
+        "",
+        "BODY / PERFORMANCE SNAPSHOT",
+        "---------------------------",
+        f"7-day avg weight: {_num(weekly.get('recent_weight'), 2, ' kg')} | change vs prior 7d: {_num(weekly.get('weight_delta'), 2, ' kg')}",
+        f"4-week fat-mass change: {_num(trend.get('fat_delta'), 2, ' kg')} | BIA lean-mass change: {_num(trend.get('lean_delta'), 2, ' kg')}",
+        f"4-week strength: {up} up / {flat} flat / {down} down",
+        marker_lines[0],
+        marker_lines[1],
+        "",
+        "RECOVERY / ADHERENCE",
+        "--------------------",
+        f"Protein: {_num(weekly.get('recent_protein'), 0, ' g/day')} | Sleep: {_num(weekly.get('recent_sleep'), 1, ' h/night')} | Steps: {_num(weekly.get('recent_steps'), 0, '/day')} | Workouts: {_num(weekly.get('recent_workouts'), 0)}",
     ]
 
-    observations_html = "".join(f"<li>{escape(item)}</li>" for item in observations)
-    review_html = "".join(f"<li>{escape(item)}</li>" for item in review_items)
-    strength_html = "".join(f"<li>{escape(item)}</li>" for item in _strength_lines(strength_4w))
-    lean_mass_html = ""
-    if lean_mass_text:
-        lean_mass_html = (
-            "<h3>Lean-Mass Preservation</h3>"
-            "<pre style='white-space:pre-wrap;font-family:Arial,sans-serif;line-height:1.5;background:#f7f7f7;padding:12px;border-radius:6px;'>"
-            + escape(lean_mass_text)
-            + "</pre>"
-        )
+    if feedback_learning:
+        lines.extend(["", "Feedback learning:", feedback_learning])
+    if feedback_recent and "No follow-up window has matured yet." not in feedback_recent:
+        lines.extend(["", "Recent tested outcomes:", feedback_recent])
+    if lean_interpretation:
+        lean_bullets = _compact_bullets(lean_interpretation, 3)
+        if lean_bullets:
+            lines.extend(["", "MUSCLE-PRESERVATION INTERPRETATION", "----------------------------------"])
+            lines.extend(f"- {item}" for item in lean_bullets)
+    lines.extend(["", "NEXT WEEK FOCUS", "---------------"])
+    lines.extend(f"- {item}" for item in next_focus) if next_focus else lines.append("- No specific focus items available.")
+    lines.extend([
+        "",
+        "Notes: Withings lean mass is a BIA estimate and can move with hydration/glycogen. "
+        "Grip is only treated as a trend after enough repeated measurements. The adaptive feedback loop separates adherence from effectiveness.",
+    ])
+    text = "\n".join(line for line in lines if line is not None)
 
-    return f"""<!DOCTYPE html>
-<html>
-  <body style="font-family:Arial,sans-serif;line-height:1.5;color:#222;">
-    <h2>Weekly Coaching Summary</h2>
-    <p><strong>Data status: {escape(status.upper())}</strong> — {escape(status_message)}</p>
-    <h3>7-Day Summary</h3>
-    <table style="border-collapse:collapse;margin-bottom:18px;">{_html_table(summary_rows)}</table>
-    <h3>Data Quality</h3>
-    <table style="border-collapse:collapse;margin-bottom:18px;">{_html_table(_coverage_rows(coverage))}</table>
-    <h3>4-Week Context</h3>
-    <table style="border-collapse:collapse;margin-bottom:18px;">{_html_table(_trend_rows(trend))}</table>
-    <h3>4-Week Strength Context</h3>
-    <p>Compares the best e1RM in the latest four weeks with the best e1RM in the prior four weeks.</p>
-    <ul>{strength_html}</ul>
-    {lean_mass_html}
-    <h3>Observations</h3>
-    <ul>{observations_html}</ul>
-    <h3>Items to review</h3>
-    <ul>{review_html}</ul>
-    <p style="color:#666;font-size:0.9em;">Coverage confidence reflects completeness of the reporting window, not device measurement accuracy. Strength e1RM remains a training-performance proxy rather than a max test. Withings lean mass is a BIA estimate and can move with hydration and glycogen. Generated automatically from the fitness-dashboard analytics database.</p>
-  </body>
-</html>
-"""
+    def li(items: list[str]) -> str:
+        return "".join(f"<li>{escape(item)}</li>" for item in items)
+
+    html = f"""<!DOCTYPE html>
+<html><body style="font-family:Arial,sans-serif;line-height:1.5;color:#222;">
+<h2>Weekly Coaching Summary</h2>
+<p><strong>Data status: {escape(status.upper())}</strong><br>Latest complete analysis date: {escape(latest_date.isoformat() if latest_date else 'n/a')}</p>
+<h3>Coaching status</h3>
+<p>{escape(phase)}<br>{escape(phase_suggestion)}<br><strong>Recovery guardrail:</strong> {escape(guardrail.replace('status:', '').strip())}<br>{escape(guardrail_interpretation)}</p>
+<h3>This week's calorie decision</h3><p>{escape(calorie_summary or 'No current calorie decision available.')}</p>
+<h3>Body / performance snapshot</h3>
+<ul>
+<li>7-day avg weight: {escape(_num(weekly.get('recent_weight'), 2, ' kg'))}; change vs prior 7d: {escape(_num(weekly.get('weight_delta'), 2, ' kg'))}</li>
+<li>4-week fat-mass change: {escape(_num(trend.get('fat_delta'), 2, ' kg'))}; BIA lean-mass change: {escape(_num(trend.get('lean_delta'), 2, ' kg'))}</li>
+<li>4-week strength: {up} up / {flat} flat / {down} down</li>
+<li>{escape(marker_lines[0])}</li><li>{escape(marker_lines[1])}</li>
+</ul>
+<h3>Recovery / adherence</h3>
+<p>Protein: {escape(_num(weekly.get('recent_protein'), 0, ' g/day'))} | Sleep: {escape(_num(weekly.get('recent_sleep'), 1, ' h/night'))} | Steps: {escape(_num(weekly.get('recent_steps'), 0, '/day'))} | Workouts: {escape(_num(weekly.get('recent_workouts'), 0))}</p>
+<h3>Next week focus</h3><ul>{li(next_focus or ['No specific focus items available.'])}</ul>
+<p style="color:#666;font-size:0.9em;">Withings lean mass is a BIA estimate. Grip is only interpreted as a trend after repeated measurements. The adaptive feedback loop separates adherence from effectiveness.</p>
+</body></html>"""
+    return text, html
 
 
 def main() -> None:
     freshness = _freshness()
     status = freshness.get("overall_status", "unknown")
-    context = load_report_context()
-    latest_date = context.get("analysis_end_date")
-    weekly = context.get("weekly", {})
-    coverage = context.get("coverage", {})
-    trend = context.get("trend_4w", {})
-    strength_4w = context.get("strength_4w", [])
-    lean_mass_text = _lean_mass_text()
-
-    observations = _observations(weekly, status)
-    review_items = _review_items(weekly, coverage, freshness)
-
-    text = _build_text(
-        latest_date,
-        status,
-        weekly,
-        coverage,
-        trend,
-        strength_4w,
-        observations,
-        review_items,
-        lean_mass_text,
-    )
-    html = _build_html(
-        latest_date,
-        status,
-        weekly,
-        coverage,
-        trend,
-        strength_4w,
-        observations,
-        review_items,
-        lean_mass_text,
-    )
-
+    text, html = _build(status)
     OUTPUT_TXT.write_text(text, encoding="utf-8")
     OUTPUT_HTML.write_text(html, encoding="utf-8")
     print(text)
