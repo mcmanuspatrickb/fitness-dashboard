@@ -211,6 +211,7 @@ def main() -> None:
     pace = energy.get("weight_loss_pct_week")
     strength_up, strength_flat, strength_down = _strength_summary(strength)
     personal = _load_personal_response()
+    notes: list[str] = []
     if tdee_stability == "UNSTABLE":
         notes.append("The 28- and 42-day maintenance estimates disagree materially, so the model will not deepen the deficit from TDEE math this week.")
 
@@ -224,7 +225,6 @@ def main() -> None:
     strength_concern = strength_down >= 2
     strength_stable = strength_down == 0 and (strength_up + strength_flat) >= 2
 
-    notes: list[str] = []
     if phase == "maintenance":
         target_deficit = 0.0
         notes.append("The configured coaching phase is maintenance, so the model targets estimated maintenance rather than a deficit.")
