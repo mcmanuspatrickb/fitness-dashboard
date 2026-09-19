@@ -1,0 +1,59 @@
+name: Finalize Canonical Backend
+
+on:
+  push:
+    paths:
+      - ".github/workflows/finalize_canonical_backend.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Patch final canonical consistency issues
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('scripts/73_adaptive_calorie_recommendation.py')
+          text = p.read_text(encoding='utf-8')
+          old = '''    personal = _load_personal_response()\n    if tdee_stability == "UNSTABLE":\n        notes.append("The 28- and 42-day maintenance estimates disagree materially, so the model will not deepen the deficit from TDEE math this week.")\n\n    lean_delta_4w = trend.get("lean_delta")\n'''
+          new = '''    personal = _load_personal_response()\n    notes: list[str] = []\n    if tdee_stability == "UNSTABLE":\n        notes.append("The 28- and 42-day maintenance estimates disagree materially, so the model will not deepen the deficit from TDEE math this week.")\n\n    lean_delta_4w = trend.get("lean_delta")\n'''
+          if old not in text:
+              raise SystemExit('73 notes initialization target not found')
+          text = text.replace(old, new, 1)
+          text = text.replace('    notes: list[str] = []\n    if phase == "maintenance":', '    if phase == "maintenance":', 1)
+          p.write_text(text, encoding='utf-8')
+
+          p = Path('scripts/76_adaptive_coaching_feedback.py')
+          text = p.read_text(encoding='utf-8')
+          old = '''        "estimated_tdee": _extract_number(text, "rolling 28-day estimated maintenance"),\n'''
+          new = '''        "estimated_tdee": _extract_number(text, "consensus planning maintenance") or _extract_number(text, "rolling 28-day estimated maintenance"),\n'''
+          if old not in text:
+              raise SystemExit('76 TDEE parse target not found')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Compile final backend
+        run: |
+          python -m py_compile \
+            scripts/73_adaptive_calorie_recommendation.py \
+            scripts/76_adaptive_coaching_feedback.py \
+            scripts/78_cut_stress_guardrail.py \
+            scripts/79_canonical_coaching_engine.py \
+            scripts/111_build_coaching_summary.py
+      - name: Commit final backend fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/73_adaptive_calorie_recommendation.py scripts/76_adaptive_coaching_feedback.py
+          git commit -m "Finalize canonical coaching consistency"
+          git pull --rebase origin main
+          git push origin HEAD:main
