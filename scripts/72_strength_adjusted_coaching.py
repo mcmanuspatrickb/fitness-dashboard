@@ -237,11 +237,10 @@ def main() -> None:
         notes.append("Sleep is limiting progress.")
         recommendations.append("Protect sleep before changing training variables.")
 
-    if pd.notna(row["recent_protein"]) and row["recent_protein"] >= 120:
-        notes.append("Protein intake is supportive for muscle retention and performance.")
-    elif pd.notna(row["recent_protein"]) and row["recent_protein"] < 110:
-        notes.append("Protein is a little light for your current goal.")
-        recommendations.append("Push protein toward 120–140 g/day.")
+    if pd.notna(row["recent_protein"]):
+        notes.append(
+            f"Protein averages {float(row['recent_protein']):.0f} g/day; use the Lean-Mass Preservation section for the current personalized protein target."
+        )
 
     if pd.notna(row["recent_calories"]) and row["recent_calories"] < 1600:
         notes.append("Calories may be too low for a strength-focused recomp phase.")

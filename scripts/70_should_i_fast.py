@@ -200,8 +200,6 @@ def main() -> None:
         reasons_for.append("Resting HR looks reasonably calm.")
     if pd.notna(row["recent_sleep"]) and row["recent_sleep"] >= 7:
         reasons_for.append("Sleep looks supportive.")
-    if pd.notna(row["recent_protein"]) and row["recent_protein"] >= 110:
-        reasons_for.append("Protein looks adequate for a well-controlled prep state.")
 
     if reasons_against:
         decision = "NO — do not start a fast right now."
