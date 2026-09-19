@@ -4,12 +4,14 @@ import json
 from pathlib import Path
 from typing import Any
 
+import duckdb
 import pandas as pd
 
 from report_context import load_report_context
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DB_PATH = PROJECT_ROOT / "db" / "fitness.duckdb"
 REPORTS_DIR = PROJECT_ROOT / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -19,7 +21,7 @@ PHASE_JSON = REPORTS_DIR / "current_phase.json"
 GUARDRAIL_JSON = REPORTS_DIR / "cut_stress_guardrail.json"
 
 ENERGY_KCAL_PER_KG = 7700.0
-MIN_PERSONAL_BLOCKS = 8
+MIN_PERSONAL_BLOCKS = 12
 MIN_PERSONAL_WORKOUTS = 2
 MAX_WEEKLY_ADJUSTMENT = 150
 
@@ -93,6 +95,28 @@ def _rolling_energy_balance(frame: pd.DataFrame, recent_weight: float | None) ->
     return result
 
 
+def _load_energy_window(end_date, days: int) -> pd.DataFrame:
+    con = duckdb.connect(str(DB_PATH), read_only=True)
+    try:
+        return con.execute(
+            """
+            SELECT d.date, b.weight_kg, n.calories
+            FROM analytics.daily_metrics d
+            LEFT JOIN clean.body_composition b ON d.date=b.date
+            LEFT JOIN clean.nutrition_daily n ON d.date=n.date
+            WHERE d.date BETWEEN (?::DATE - (? - 1) * INTERVAL 1 DAY) AND ?::DATE
+            ORDER BY d.date
+            """,
+            [end_date, days, end_date],
+        ).fetchdf()
+    finally:
+        con.close()
+
+
+def _round25_float(value: float) -> float:
+    return float(round(value / 25.0) * 25.0)
+
+
 def _spearman(frame: pd.DataFrame, x: str, y: str) -> float | None:
     if frame.empty or x not in frame.columns or y not in frame.columns:
         return None
@@ -164,11 +188,31 @@ def main() -> None:
     current_calories = weekly.get("recent_calories")
     recent_weight = weekly.get("recent_weight")
     energy = _rolling_energy_balance(trailing_28, recent_weight)
-    estimated_tdee = energy.get("estimated_tdee")
-    estimated_deficit = energy.get("estimated_deficit")
+    energy42 = _rolling_energy_balance(_load_energy_window(end_date, 42), recent_weight)
+    tdee28 = energy.get("estimated_tdee")
+    tdee42 = energy42.get("estimated_tdee")
+    available_tdee = [float(v) for v in (tdee28, tdee42) if v is not None]
+    tdee_difference = abs(float(tdee28) - float(tdee42)) if tdee28 is not None and tdee42 is not None else None
+    if len(available_tdee) == 2:
+        estimated_tdee = sum(available_tdee) / 2.0
+        tdee_stability = "STABLE" if tdee_difference <= 150 else ("WATCH" if tdee_difference <= 300 else "UNSTABLE")
+        planning_low = min(available_tdee) - 100.0
+        planning_high = max(available_tdee) + 100.0
+    elif len(available_tdee) == 1:
+        estimated_tdee = available_tdee[0]
+        tdee_stability = "SINGLE_WINDOW"
+        planning_low = estimated_tdee - 175.0
+        planning_high = estimated_tdee + 175.0
+    else:
+        estimated_tdee = None
+        tdee_stability = "UNAVAILABLE"
+        planning_low = planning_high = None
+    estimated_deficit = (estimated_tdee - float(energy.get("avg_calories"))) if estimated_tdee is not None and energy.get("avg_calories") is not None else None
     pace = energy.get("weight_loss_pct_week")
     strength_up, strength_flat, strength_down = _strength_summary(strength)
     personal = _load_personal_response()
+    if tdee_stability == "UNSTABLE":
+        notes.append("The 28- and 42-day maintenance estimates disagree materially, so the model will not deepen the deficit from TDEE math this week.")
 
     lean_delta_4w = trend.get("lean_delta")
     fat_delta_4w = trend.get("fat_delta")
@@ -236,7 +280,7 @@ def main() -> None:
                     current_vs_28 = (float(current_calories) / float(avg_calories_28) - 1.0) * 100.0
                 if lean_watch or fast_loss or strength_concern or guardrail_status != "STABLE" or (current_vs_28 is not None and current_vs_28 <= -10.0):
                     recommendation, calorie_change = "INCREASE", proposed
-            elif proposed < 0 and stalled_loss and fat_not_moving and strength_stable and guardrail_status == "STABLE":
+            elif proposed < 0 and stalled_loss and fat_not_moving and strength_stable and guardrail_status == "STABLE" and tdee_stability != "UNSTABLE":
                 recommendation, calorie_change = "DECREASE", proposed
     else:
         notes.append("Rolling TDEE could not be estimated with sufficient coverage, so no calorie adjustment is made from energy-balance math this week.")
@@ -256,10 +300,14 @@ def main() -> None:
         f"phase suggestion: {phase_info.get('suggestion', 'n/a')}",
         f"recovery guardrail: {guardrail_status}", "",
         "Energy-Balance Model", "--------------------",
-        f"rolling 28-day estimated maintenance: {_fmt(estimated_tdee, 0)} kcal/day",
-        f"rolling 28-day estimated deficit: {_fmt(estimated_deficit, 0)} kcal/day",
+        f"rolling 28-day estimated maintenance: {_fmt(tdee28, 0)} kcal/day",
+        f"rolling 42-day estimated maintenance: {_fmt(tdee42, 0)} kcal/day",
+        f"consensus planning maintenance: {_fmt(estimated_tdee, 0)} kcal/day",
+        f"planning maintenance range: {_fmt(planning_low, 0)}-{_fmt(planning_high, 0)} kcal/day",
+        f"28/42-day TDEE agreement: {tdee_stability}",
+        f"consensus estimated deficit: {_fmt(estimated_deficit, 0)} kcal/day",
         f"rolling 28-day loss pace: {_fmt(pace, 2)}% body weight/week",
-        f"energy-balance coverage: {energy.get('coverage_confidence', 'LOW')} ({energy.get('calorie_days', 0)} nutrition days; {energy.get('weight_days', 0)} weight days)",
+        f"energy-balance coverage (28d): {energy.get('coverage_confidence', 'LOW')} ({energy.get('calorie_days', 0)} nutrition days; {energy.get('weight_days', 0)} weight days)",
         f"model target deficit: {_fmt(target_deficit, 0)} kcal/day",
         f"model target intake: {_fmt(target_calories, 0)} kcal/day", "",
         "Current Trend", "-------------",
@@ -286,7 +334,7 @@ def main() -> None:
     lines.extend(f"- {item}" for item in notes)
     lines.extend([
         "", "Method Note", "-----------",
-        "Maintenance/TDEE is inferred from the 28-day scale-weight trend plus logged calorie intake using 7,700 kcal per kg as an energy-balance approximation. Water/glycogen shifts and food-logging error can materially move the estimate.",
+        "Maintenance/TDEE is inferred from both 28- and 42-day scale-weight trends plus logged calorie intake using 7,700 kcal per kg as an energy-balance approximation. The planning estimate uses both windows when available and reports their disagreement as uncertainty. Water/glycogen shifts and food-logging error can materially move the estimate.",
         "Weekly calorie changes are capped at 150 kcal/day. During a cut, downward changes require a multi-week stall, stable performance, and a stable recovery guardrail.",
         "Phase changes are explicit: the detector can suggest a transition, but it does not silently switch the coaching phase.",
     ])

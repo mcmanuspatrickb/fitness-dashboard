@@ -28,6 +28,7 @@ PHASE_JSON = REPORTS_DIR / "current_phase.json"
 
 MIN_FEEDBACK_EVENTS = 4
 DAMPENED_ADJUSTMENT = 50
+EFFECTIVENESS_HORIZON = 28
 
 BASE_COLUMNS = [
     "decision_id", "decision_date", "analysis_end_date", "phase", "action",
@@ -49,7 +50,7 @@ OUTCOME_FIELDS = [
 ]
 HISTORY_COLUMNS = BASE_COLUMNS + [
     f"outcome{horizon}_{field}"
-    for horizon in (7, 14)
+    for horizon in (7, 14, 28)
     for field in OUTCOME_FIELDS
 ] + ["created_at_utc", "updated_at_utc"]
 
@@ -275,7 +276,7 @@ def _evaluate_history(history: pd.DataFrame, analysis_end: date) -> pd.DataFrame
                 "steps": _float(row["baseline_steps"]), "calories": _float(row["baseline_calories"]),
                 "grip": _float(row["baseline_grip_kg"]), "waist": _float(row["baseline_waist_cm"]),
             }
-            for horizon, first_day, last_day in [(7, 1, 7), (14, 8, 14)]:
+            for horizon, first_day, last_day in [(7, 1, 7), (14, 8, 14), (28, 21, 28)]:
                 status_col = f"outcome{horizon}_status"
                 existing = str(row.get(status_col, "") or "").upper()
                 if existing in {"HELPFUL", "NEUTRAL", "ADVERSE", "INCONCLUSIVE", "INSUFFICIENT_DATA"}:
@@ -321,20 +322,21 @@ def _evaluate_history(history: pd.DataFrame, analysis_end: date) -> pd.DataFrame
 
 
 def _feedback_evidence(history: pd.DataFrame, action: str) -> dict[str, Any]:
-    result = {"eligible": 0, "helpful": 0, "neutral": 0, "adverse": 0, "helpful_rate": None, "adverse_rate": None, "status": "BUILDING"}
+    result = {"eligible": 0, "helpful": 0, "neutral": 0, "adverse": 0, "helpful_rate": None, "adverse_rate": None, "status": "BUILDING", "horizon": EFFECTIVENESS_HORIZON}
     if history.empty:
         return result
     subset = history[history["action"].astype(str).str.upper() == action.upper()].copy()
+    prefix = f"outcome{EFFECTIVENESS_HORIZON}_"
     subset = subset[
-        subset["outcome7_status"].astype(str).isin(["HELPFUL", "NEUTRAL", "ADVERSE"])
-        & subset["outcome7_calorie_adherence"].astype(str).isin(["FOLLOWED", "PARTIAL"])
+        subset[prefix + "status"].astype(str).isin(["HELPFUL", "NEUTRAL", "ADVERSE"])
+        & subset[prefix + "calorie_adherence"].astype(str).isin(["FOLLOWED", "PARTIAL"])
     ]
-    confounded = subset["outcome7_confounded"].astype(str).str.lower().isin(["true", "1"])
+    confounded = subset[prefix + "confounded"].astype(str).str.lower().isin(["true", "1"])
     subset = subset[~confounded]
     result["eligible"] = int(len(subset))
     if subset.empty:
         return result
-    counts = subset["outcome7_status"].value_counts()
+    counts = subset[prefix + "status"].value_counts()
     for key in ["HELPFUL", "NEUTRAL", "ADVERSE"]:
         result[key.lower()] = int(counts.get(key, 0))
     result["helpful_rate"] = result["helpful"] / len(subset)
@@ -428,10 +430,10 @@ def _report(history: pd.DataFrame, parsed: dict[str, Any], adjustment: int) -> s
             f"training target: >= {_num(current_row['target_workouts'], 0)} sessions/week",
             f"steps target: ~{_num(current_row['target_steps'], 0)}/day",
         ])
-    lines.extend(["This decision and its supporting targets are logged for 7-day and 14-day follow-up.", "", "Learning Status", "---------------"])
+    lines.extend(["This decision and its supporting targets are logged for 7-day adherence/recovery, 14-day early direction, and days 21-28 effectiveness follow-up.", "", "Learning Status", "---------------"])
     for action in ["INCREASE", "DECREASE", "HOLD"]:
         evidence = _feedback_evidence(history, action)
-        lines.append(f"{action}: {evidence['eligible']} eligible 7-day outcome(s) | helpful={evidence['helpful']} neutral={evidence['neutral']} adverse={evidence['adverse']} | learning={evidence['status']}")
+        lines.append(f"{action}: {evidence['eligible']} eligible 21-28 day effectiveness outcome(s) | helpful={evidence['helpful']} neutral={evidence['neutral']} adverse={evidence['adverse']} | learning={evidence['status']}")
 
     lines.extend(["", "Recent Evaluations", "------------------"])
     evaluated = history[history["outcome7_status"].astype(str).isin(["HELPFUL", "NEUTRAL", "ADVERSE", "INCONCLUSIVE", "INSUFFICIENT_DATA"])].tail(4)
@@ -441,9 +443,9 @@ def _report(history: pd.DataFrame, parsed: dict[str, Any], adjustment: int) -> s
         for _, row in evaluated.iterrows():
             lines.append(
                 f"{row['decision_date']} {row['action']} {_float(row['calorie_adjustment']) or 0:+.0f}: "
-                f"7d={row['outcome7_status']} | calorie={row['outcome7_calorie_adherence']} | "
-                f"protein={row['outcome7_protein_adherence']} | sleep={row['outcome7_sleep_adherence']} | "
-                f"training={row['outcome7_training_adherence']} | steps={row['outcome7_steps_adherence']} | "
+                f"7d={row['outcome7_status']} | 14d={row.get('outcome14_status', 'PENDING')} | 21-28d={row.get('outcome28_status', 'PENDING')} | "
+                f"calorie={row['outcome7_calorie_adherence']} | protein={row['outcome7_protein_adherence']} | "
+                f"sleep={row['outcome7_sleep_adherence']} | training={row['outcome7_training_adherence']} | steps={row['outcome7_steps_adherence']} | "
                 f"fat={_num(row['outcome7_fat_delta'])} kg | lean={_num(row['outcome7_lean_delta'])} kg | grip={_num(row['outcome7_grip_delta_pct'], 1)}%"
             )
 
@@ -452,7 +454,7 @@ def _report(history: pd.DataFrame, parsed: dict[str, Any], adjustment: int) -> s
         "The feedback loop separates adherence from effectiveness. If a recommendation was not followed, its outcome is not treated as evidence that the recommendation itself failed.",
         "Calories are evaluated directionally; protein, sleep, two weekly resistance sessions, and roughly 7k daily steps are tracked as supporting adherence targets.",
         "Grip and waist are included when follow-up measurements exist. Grip decline is only treated as a preservation concern when the change is large enough to be meaningful; sparse waist data are descriptive context.",
-        f"At least {MIN_FEEDBACK_EVENTS} eligible, followed, unconfounded seven-day calorie outcomes for the same action are required before history can dampen a future calorie step.",
+        f"At least {MIN_FEEDBACK_EVENTS} eligible, followed, unconfounded days-21-to-28 effectiveness outcomes for the same action are required before history can dampen a future calorie step.",
     ])
     return "\n".join(lines)
 
