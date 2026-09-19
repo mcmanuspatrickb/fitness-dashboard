@@ -59,30 +59,26 @@ def _count_complete(frame: pd.DataFrame, *columns: str) -> int:
     return int(mask.sum())
 
 
+def _table_exists(con: duckdb.DuckDBPyConnection, schema: str, table: str) -> bool:
+    return bool(con.execute(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=? AND table_name=?",
+        [schema, table],
+    ).fetchone()[0])
+
+
 def _analysis_end_date(con: duckdb.DuckDBPyConnection) -> date | None:
     return con.execute(
         """
         WITH source_dates AS (
             SELECT
-                (SELECT MAX(date)
-                 FROM clean.body_composition
-                 WHERE weight_kg IS NOT NULL) AS body_date,
-                (SELECT MAX(date)
-                 FROM clean.fitbit_daily
-                 WHERE steps IS NOT NULL
-                    OR sleep_hours IS NOT NULL
-                    OR resting_hr IS NOT NULL
-                    OR hrv IS NOT NULL) AS activity_date,
-                (SELECT MAX(date)
-                 FROM clean.nutrition_daily
-                 WHERE calories IS NOT NULL
-                    OR protein_g IS NOT NULL) AS nutrition_date
+                (SELECT MAX(date) FROM clean.body_composition WHERE weight_kg IS NOT NULL) AS body_date,
+                (SELECT MAX(date) FROM clean.fitbit_daily
+                 WHERE steps IS NOT NULL OR sleep_hours IS NOT NULL OR resting_hr IS NOT NULL OR hrv IS NOT NULL) AS activity_date,
+                (SELECT MAX(date) FROM clean.nutrition_daily
+                 WHERE calories IS NOT NULL OR protein_g IS NOT NULL) AS nutrition_date
         )
         SELECT CASE
-            WHEN body_date IS NULL
-              OR activity_date IS NULL
-              OR nutrition_date IS NULL
-            THEN NULL
+            WHEN body_date IS NULL OR activity_date IS NULL OR nutrition_date IS NULL THEN NULL
             ELSE LEAST(body_date, activity_date, nutrition_date)
         END
         FROM source_dates
@@ -111,14 +107,10 @@ def _load_daily_frame(con: duckdb.DuckDBPyConnection, end_date: date) -> pd.Data
             t.workout_count,
             t.total_volume
         FROM analytics.daily_metrics dm
-        LEFT JOIN clean.body_composition b
-            ON dm.date = b.date
-        LEFT JOIN clean.nutrition_daily n
-            ON dm.date = n.date
-        LEFT JOIN clean.fitbit_daily f
-            ON dm.date = f.date
-        LEFT JOIN clean.training_summary t
-            ON dm.date = t.date
+        LEFT JOIN clean.body_composition b ON dm.date = b.date
+        LEFT JOIN clean.nutrition_daily n ON dm.date = n.date
+        LEFT JOIN clean.fitbit_daily f ON dm.date = f.date
+        LEFT JOIN clean.training_summary t ON dm.date = t.date
         WHERE dm.date BETWEEN (?::DATE - INTERVAL 27 DAY) AND ?::DATE
         ORDER BY dm.date
         """,
@@ -129,16 +121,68 @@ def _load_daily_frame(con: duckdb.DuckDBPyConnection, end_date: date) -> pd.Data
     return frame
 
 
-def _strength_4w(end_date: date, path: Path = STRENGTH_CSV) -> list[dict[str, Any]]:
-    """Compare the best e1RM in the latest 4 weeks with the prior 4 weeks.
+def _load_performance(con: duckdb.DuckDBPyConnection, end_date: date) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "grip_measurement_count": 0,
+        "latest_grip_date": None,
+        "latest_grip_left_kg": None,
+        "latest_grip_right_kg": None,
+        "latest_grip_overall_kg": None,
+        "latest_grip_asymmetry_pct": None,
+        "grip_trend_pct": None,
+        "latest_waist_date": None,
+        "latest_waist_cm": None,
+        "prior_waist_cm": None,
+        "waist_change_cm": None,
+    }
+    if not _table_exists(con, "clean", "performance_markers_daily"):
+        return result
 
-    Using window maxima rather than first-vs-last weekly values prevents a deload,
-    technique session, or otherwise light first workout from looking like a huge
-    strength gain. The result is still a training-performance proxy, not a max test.
-    """
+    frame = con.execute(
+        """
+        SELECT *
+        FROM clean.performance_markers_daily
+        WHERE date <= ?::DATE
+        ORDER BY date
+        """,
+        [end_date],
+    ).fetchdf()
+    if frame.empty:
+        return result
+    frame["date"] = pd.to_datetime(frame["date"], errors="coerce").dt.date
+
+    grip = frame.dropna(subset=["grip_overall_best_kg"]).copy()
+    result["grip_measurement_count"] = int(len(grip))
+    if not grip.empty:
+        latest = grip.iloc[-1]
+        result.update({
+            "latest_grip_date": str(latest["date"]),
+            "latest_grip_left_kg": float(latest["grip_left_best_kg"]) if pd.notna(latest["grip_left_best_kg"]) else None,
+            "latest_grip_right_kg": float(latest["grip_right_best_kg"]) if pd.notna(latest["grip_right_best_kg"]) else None,
+            "latest_grip_overall_kg": float(latest["grip_overall_best_kg"]),
+            "latest_grip_asymmetry_pct": float(latest["grip_asymmetry_pct"]) if pd.notna(latest["grip_asymmetry_pct"]) else None,
+        })
+        if len(grip) >= 4:
+            latest_two = pd.to_numeric(grip.tail(2)["grip_overall_best_kg"], errors="coerce").dropna()
+            prior_two = pd.to_numeric(grip.iloc[-4:-2]["grip_overall_best_kg"], errors="coerce").dropna()
+            if len(latest_two) == 2 and len(prior_two) == 2 and prior_two.mean() > 0:
+                result["grip_trend_pct"] = float((latest_two.mean() / prior_two.mean() - 1.0) * 100.0)
+
+    waist = frame.dropna(subset=["waist_cm"]).copy()
+    if not waist.empty:
+        latest = waist.iloc[-1]
+        result["latest_waist_date"] = str(latest["date"])
+        result["latest_waist_cm"] = float(latest["waist_cm"])
+        if len(waist) >= 2:
+            prior = waist.iloc[-2]
+            result["prior_waist_cm"] = float(prior["waist_cm"])
+            result["waist_change_cm"] = float(latest["waist_cm"] - prior["waist_cm"])
+    return result
+
+
+def _strength_4w(end_date: date, path: Path = STRENGTH_CSV) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-
     try:
         frame = pd.read_csv(path)
     except Exception:
@@ -156,7 +200,6 @@ def _strength_4w(end_date: date, path: Path = STRENGTH_CSV) -> list[dict[str, An
     current_start = end_date - timedelta(days=27)
     prior_end = current_start - timedelta(days=1)
     prior_start = prior_end - timedelta(days=27)
-
     current = frame[frame["week_start"].between(current_start, end_date)].copy()
     prior = frame[frame["week_start"].between(prior_start, prior_end)].copy()
 
@@ -167,29 +210,20 @@ def _strength_4w(end_date: date, path: Path = STRENGTH_CSV) -> list[dict[str, An
         prior_sub = prior[prior["target_lift"] == lift]
         if current_sub.empty or prior_sub.empty:
             continue
-
         current_best = float(current_sub["estimated_1rm"].max())
         prior_best = float(prior_sub["estimated_1rm"].max())
         change = current_best - prior_best
-        if change > 1.0:
-            direction = "up"
-        elif change < -1.0:
-            direction = "down"
-        else:
-            direction = "flat"
-
-        results.append(
-            {
-                "target_lift": str(lift),
-                "label": LIFT_LABELS.get(str(lift), str(lift).replace("_", " ").title()),
-                "current_best_e1rm": current_best,
-                "prior_best_e1rm": prior_best,
-                "change_e1rm": change,
-                "direction": direction,
-                "current_observations": int(len(current_sub)),
-                "prior_observations": int(len(prior_sub)),
-            }
-        )
+        direction = "up" if change > 1.0 else ("down" if change < -1.0 else "flat")
+        results.append({
+            "target_lift": str(lift),
+            "label": LIFT_LABELS.get(str(lift), str(lift).replace("_", " ").title()),
+            "current_best_e1rm": current_best,
+            "prior_best_e1rm": prior_best,
+            "change_e1rm": change,
+            "direction": direction,
+            "current_observations": int(len(current_sub)),
+            "prior_observations": int(len(prior_sub)),
+        })
 
     order = {name: i for i, name in enumerate(LIFT_LABELS)}
     results.sort(key=lambda item: order.get(item["target_lift"], 999))
@@ -202,16 +236,13 @@ def load_report_context(db_path: Path = DB_PATH) -> dict[str, Any]:
         end_date = _analysis_end_date(con)
         if end_date is None:
             return {
-                "analysis_end_date": None,
-                "current": pd.DataFrame(),
-                "previous": pd.DataFrame(),
-                "trailing_28": pd.DataFrame(),
-                "weekly": {},
-                "coverage": {},
-                "trend_4w": {},
-                "strength_4w": [],
+                "analysis_end_date": None, "current": pd.DataFrame(),
+                "previous": pd.DataFrame(), "trailing_28": pd.DataFrame(),
+                "weekly": {}, "coverage": {}, "trend_4w": {},
+                "strength_4w": [], "performance": {},
             }
         trailing_28 = _load_daily_frame(con, end_date)
+        performance = _load_performance(con, end_date)
     finally:
         con.close()
 
@@ -272,7 +303,6 @@ def load_report_context(db_path: Path = DB_PATH) -> dict[str, Any]:
         "recovery_days": _count_complete(current, "resting_hr", "hrv"),
         "workouts": int(round(weekly["recent_workouts"] or 0)),
     }
-
     checks = [
         coverage["body_composition_days"] >= 4,
         coverage["nutrition_days"] >= 6,
@@ -281,13 +311,7 @@ def load_report_context(db_path: Path = DB_PATH) -> dict[str, Any]:
         coverage["recovery_days"] >= 5,
     ]
     passed = sum(checks)
-    if passed == len(checks):
-        confidence = "HIGH"
-    elif passed >= 3:
-        confidence = "MEDIUM"
-    else:
-        confidence = "LOW"
-    coverage["confidence"] = confidence
+    coverage["confidence"] = "HIGH" if passed == len(checks) else ("MEDIUM" if passed >= 3 else "LOW")
     coverage["checks_passed"] = passed
     coverage["checks_total"] = len(checks)
 
@@ -316,4 +340,5 @@ def load_report_context(db_path: Path = DB_PATH) -> dict[str, Any]:
         "coverage": coverage,
         "trend_4w": trend_4w,
         "strength_4w": _strength_4w(end_date),
+        "performance": performance,
     }
