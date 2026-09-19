@@ -1,0 +1,74 @@
+2026 Progress Analysis (through 2026-09-18)
+============================================
+
+BODY COMPOSITION
+Start anchor 2026-01-08: weight 129.539 kg; fat mass 45.170 kg; BIA lean mass 84.369 kg; body fat 34.87%.
+End anchor 2026-09-18: weight 106.577 kg; fat mass 29.970 kg; BIA lean mass 76.607 kg; body fat 28.12%.
+Exact-anchor change: weight -22.962 kg; fat mass -15.200 kg; BIA lean mass -7.762 kg; body-fat percentage -6.75 percentage points.
+Elapsed 253 days; body-weight change -17.73%; average loss 0.635 kg/week.
+7-day smoothed start (2026-01-08 through 2026-01-14): weight 127.517 kg; fat 43.707 kg; BIA lean 83.810 kg; body fat 34.27%.
+7-day smoothed end (2026-09-14 through 2026-09-18): weight 106.844 kg; fat 30.212 kg; BIA lean 76.632 kg; body fat 28.28%.
+7-day smoothed change: weight -20.674 kg; fat -13.495 kg; BIA lean -7.178 kg; body fat -6.00 percentage points.
+
+MONTHLY BODY-COMPOSITION AVERAGES
+2026-01: 19 days; weight 126.05; fat 42.58; lean 83.46; BF 33.78%.
+2026-02: 25 days; weight 123.17; fat 40.63; lean 82.55; BF 32.98%.
+2026-03: 30 days; weight 118.97; fat 37.79; lean 81.17; BF 31.77%.
+2026-04: 27 days; weight 116.86; fat 36.53; lean 80.33; BF 31.26%.
+2026-05: 21 days; weight 114.59; fat 34.95; lean 79.64; BF 30.50%.
+2026-06: 25 days; weight 112.65; fat 33.73; lean 78.92; BF 29.94%.
+2026-07: 24 days; weight 110.48; fat 32.48; lean 77.99; BF 29.40%.
+2026-08: 18 days; weight 107.96; fat 30.75; lean 77.21; BF 28.48%.
+2026-09: 15 days; weight 107.35; fat 30.52; lean 76.82; BF 28.43%.
+
+APPROXIMATE WITHIN-MONTH WEIGHT CHANGE (first/last up to 5 weigh-ins)
+January -3.89 kg; February -2.34 kg; March -3.01 kg; April -0.42 kg; May -2.34 kg; June -2.08 kg; July -1.35 kg; August +0.16 kg; September -0.76 kg through Sep 18.
+
+RESISTANCE TRAINING
+January 13 workouts (2.94/week); February 7 (1.75/week); March 9 (2.03/week); April 8 (1.87/week); May 7 (1.58/week); June 8 (1.87/week); July 7 (1.58/week); August 6 (1.35/week); September 5 through Sep 18 (1.94/week).
+2026 total through Sep 18: 70 workouts; average 1.88 sessions/week.
+
+WAIST
+2026-03-09 123.0 cm
+2026-03-16 122.2
+2026-03-24 122.0
+2026-03-30 121.7
+2026-04-06 121.0
+2026-04-13 121.5
+2026-04-20 120.0
+2026-05-30 117.0
+2026-06-14 115.0
+2026-08-09 113.0
+Change Mar 9 to Aug 9: -10.0 cm.
+
+STRENGTH PROGRESSION USING STRICT COMPARABLE HEVY IDENTITIES AND e1RM
+Bench press: first 84.0 kg e1RM on 2026-03-16 (70x6); latest 85.3 on 2026-09-17 (80x2); best 96.0 on 2026-06-09; first-to-latest +1.3.
+Deadlift: first 132.0 e1RM on 2026-03-19 (110x6); latest 154.0 on 2026-09-17 (140x3); best 165.0 on 2026-06-11; first-to-latest +22.0.
+Overhead press: first 50.7 e1RM on 2026-06-22 (40x8); latest 66.0 on 2026-09-17 (60x3); best/latest 66.0; first-to-latest +15.3.
+Row: first 89.6 e1RM on 2026-03-19 (64x12); latest 81.1 on 2026-09-17 (64x8); best 89.6 on 2026-03-19; first-to-latest -8.5.
+Squat: first 70.0 e1RM on 2026-01-02 (60x5); latest comparable tracked record 126.7 on 2026-03-09 (100x8); best 154.0 on 2026-02-24; first-to-latest +56.7. Later squat sessions are not represented by the currently selected strict tracked identity after Mar 9, so this series should not be treated as a September squat assessment.
+
+NUTRITION COVERAGE / MONTHLY AVERAGES
+March: 20 logged days; 1637.9 kcal/day; 139.2 g protein/day.
+July: 12 logged days; 1656.8 kcal/day; 95.6 g protein/day.
+August: 31 logged days; 2574.4 kcal/day; 111.6 g protein/day.
+September through Sep 18: 18 logged days; 1889.8 kcal/day; 126.2 g protein/day.
+Nutrition coverage from Jan 8 through Sep 18: 81 days, so long-run nutrition conclusions have important gaps.
+
+ACTIVITY / RECOVERY MONTHLY AVERAGES (months with source coverage)
+January: 9,259 steps/day; 7.19 h sleep; RHR 69.10; HRV 17.21.
+February: 7,396 steps/day; 6.21 h sleep; RHR 71.50; HRV 16.77.
+March (21 days): 7,741 steps/day; 7.38 h sleep; RHR 73.52; HRV 14.60.
+July (12 days): 6,277 steps/day; 6.99 h sleep; RHR 76.75; HRV 13.00.
+August: 7,588 steps/day; 5.99 h sleep; RHR 77.35; HRV 13.38.
+September through Sep 18: 6,230 steps/day; 6.86 h sleep; RHR 75.11; HRV 13.23.
+Activity/recovery coverage has gaps in April-June in the clean source used for this analysis.
+
+CURRENT CANONICAL CONTEXT (analysis through 2026-09-18)
+Fat loss: PROGRESSING. Muscle preservation: WATCH. Recovery: WATCH. Training: BELOW_TARGET.
+Current 4-week changes: weight -1.91 kg; BIA fat mass -1.01 kg; BIA lean mass -0.90 kg.
+Current 4-week strength context: 4 comparable lifts up; 0 flat; 0 down versus prior four-week window.
+Current protein: 122 g/day over 7 days and 121 g/day over 28 days; working protein range 138-169 g/day.
+Current sleep: 6.7 h/night over 28 days. Current resistance workouts: 7 over 28 days (1.75/week).
+Canonical planning maintenance about 2470 kcal/day; estimated current deficit 442 kcal/day; TDEE agreement WATCH; recent scale-loss pace about 0.47% body weight/week.
+Current recommendation: increase approximately 150 kcal/day rather than deepen the deficit; model target intake about 2125 kcal/day.
