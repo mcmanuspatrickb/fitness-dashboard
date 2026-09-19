@@ -16,7 +16,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r weekly_requirements.txt
       - name: Compile changed analytics
-        run: python -m py_compile scripts/74_lean_mass_preservation.py scripts/75_personal_response_analysis.py scripts/111_build_coaching_summary.py
+        run: python -m py_compile scripts/70_should_i_fast.py scripts/72_strength_adjusted_coaching.py scripts/74_lean_mass_preservation.py scripts/75_personal_response_analysis.py scripts/111_build_coaching_summary.py
       - name: Refresh live sources
         env:
           WITHINGS_DATABASE_URL: ${{ secrets.WITHINGS_DATABASE_URL }}
@@ -38,4 +38,7 @@ jobs:
           cat reports/lean_mass_preservation.txt
           echo ""
           cat reports/personal_response_analysis.txt
-          echo "Validation complete without scipy dependency."
+          echo ""
+          cat reports/strength_adjusted_coaching.txt
+          echo ""
+          cat reports/should_i_fast.txt
