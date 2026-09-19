@@ -14,6 +14,7 @@ SOURCE_FILES = {
     "strength_adjusted": REPORTS_DIR / "strength_adjusted_coaching.txt",
     "calorie_recommendation": REPORTS_DIR / "adaptive_calorie_recommendation.txt",
     "lean_mass_preservation": REPORTS_DIR / "lean_mass_preservation.txt",
+    "personal_response": REPORTS_DIR / "personal_response_analysis.txt",
     "strength_analysis": REPORTS_DIR / "strength_progress_analysis.txt",
 }
 
@@ -92,6 +93,7 @@ def main() -> None:
     strength_adjusted = read_text(SOURCE_FILES["strength_adjusted"])
     calorie_reco = read_text(SOURCE_FILES["calorie_recommendation"])
     lean_mass_report = read_text(SOURCE_FILES["lean_mass_preservation"])
+    personal_response = read_text(SOURCE_FILES["personal_response"])
     strength_analysis = read_text(SOURCE_FILES["strength_analysis"])
 
     generated_at = datetime.now().isoformat(timespec="seconds")
@@ -118,6 +120,17 @@ def main() -> None:
     lean_interpretation = extract_section_by_heading_lines(lean_mass_report, "Interpretation")
     lean_suggestions = extract_section_by_heading_lines(lean_mass_report, "Suggestions")
     lean_method = extract_section_by_heading_lines(lean_mass_report, "Method Note")
+
+    personal_training_active = extract_section_by_heading_lines(
+        personal_response, "Training-active periods"
+    )
+    personal_associations = extract_section_by_heading_lines(
+        personal_response, "Exploratory associations"
+    )
+    personal_signals = extract_section_by_heading_lines(
+        personal_response, "Signals worth watching"
+    )
+    personal_method = extract_section_by_heading_lines(personal_response, "Method Note")
 
     latest_strength_snapshot = extract_section_by_heading_lines(strength_analysis, "Latest Weekly Snapshot")
 
@@ -181,6 +194,31 @@ def main() -> None:
         lines.append(lean_method)
     if not any([lean_personal_trend, lean_interpretation, lean_suggestions, lean_method]):
         lines.append("No lean-mass preservation analysis available.")
+    lines.append("")
+
+    lines.append("Personal Response Analysis")
+    lines.append("--------------------------")
+    if personal_training_active:
+        lines.append("Training-Active Historical Context")
+        lines.append("----------------------------------")
+        lines.append(personal_training_active)
+        lines.append("")
+    if personal_associations:
+        lines.append("Exploratory Associations")
+        lines.append("------------------------")
+        lines.append(personal_associations)
+        lines.append("")
+    if personal_signals:
+        lines.append("Signals Worth Watching")
+        lines.append("----------------------")
+        lines.append(personal_signals)
+        lines.append("")
+    if personal_method:
+        lines.append("Evidence Guardrail")
+        lines.append("------------------")
+        lines.append(personal_method)
+    if not any([personal_training_active, personal_associations, personal_signals, personal_method]):
+        lines.append("No personal-response analysis is available yet.")
     lines.append("")
 
     lines.append("Body Composition and Recovery")
