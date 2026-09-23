@@ -5,8 +5,19 @@ __pycache__/
 
 # Env / secrets
 .env
+.env.*
 secrets/
 private/
+.streamlit/secrets.toml
+secrets.toml
+
+# Google / cloud credentials
+google_credentials.json
+*credentials*.json
+*service-account*.json
+*service_account*.json
+*.pem
+*.p12
 
 # Data
 data_raw/
