@@ -124,7 +124,7 @@ def _build(status: str, snapshot: dict[str, Any]) -> tuple[str, str]:
         "",
         "THIS WEEK'S PLAN",
         "----------------",
-        f"Calories: {_state(decision.get('action'))} {_num(decision.get('calorie_adjustment'), 0, ' kcal/day')} | model target {_num(decision.get('target_intake'), 0, ' kcal/day')}",
+        f"Calories: {_state(decision.get('action'))} {_num(decision.get('calorie_adjustment'), 0, ' kcal/day')} | actionable intake {_num(decision.get('target_intake'), 0, ' kcal/day')}",
         f"Protein: {target_text}",
         "Resistance training: 2 productive sessions",
         "Movement: ~7,000 steps/day floor; ~8,000+ preferred when recovery allows",
@@ -132,7 +132,7 @@ def _build(status: str, snapshot: dict[str, Any]) -> tuple[str, str]:
         "",
         "BODY / PERFORMANCE",
         "------------------",
-        f"Weight change across comparison window: {_num(body.get('weight_change_window_kg'), 2, ' kg')}",
+        f"Weight change across comparison window (latest 7d avg vs first 7d avg; midpoints 21d apart): {_num(body.get('weight_change_window_kg'), 2, ' kg')}",
         f"BIA fat-mass change: {_num(body.get('fat_change_window_kg'), 2, ' kg')} | BIA lean-mass change: {_num(body.get('bia_lean_change_window_kg'), 2, ' kg')}",
         f"Loss pace: {_num(body.get('loss_rate_pct_week'), 2, '%/week')}",
         f"Strength: {strength.get('up', 0)} up / {strength.get('flat', 0)} flat / {strength.get('down', 0)} down",
@@ -233,7 +233,7 @@ def _build(status: str, snapshot: dict[str, Any]) -> tuple[str, str]:
 
 <h3>This week's plan</h3>
 <ul>
-<li><strong>Calories:</strong> {escape(_state(decision.get('action')))} {escape(_num(decision.get('calorie_adjustment'), 0, ' kcal/day'))}; model target {escape(_num(decision.get('target_intake'), 0, ' kcal/day'))}</li>
+<li><strong>Calories:</strong> {escape(_state(decision.get('action')))} {escape(_num(decision.get('calorie_adjustment'), 0, ' kcal/day'))}; actionable intake {escape(_num(decision.get('target_intake'), 0, ' kcal/day'))}</li>
 <li><strong>Protein:</strong> {escape(target_text)}</li>
 <li><strong>Resistance training:</strong> 2 productive sessions</li>
 <li><strong>Movement:</strong> ~7,000/day floor; ~8,000+ preferred when recovery allows</li>
@@ -242,7 +242,7 @@ def _build(status: str, snapshot: dict[str, Any]) -> tuple[str, str]:
 
 <h3>Body / performance</h3>
 <ul>
-<li>Weight change across comparison window: {escape(_num(body.get('weight_change_window_kg'), 2, ' kg'))}</li>
+<li>Weight change across comparison window (latest 7d avg vs first 7d avg; midpoints 21d apart): {escape(_num(body.get('weight_change_window_kg'), 2, ' kg'))}</li>
 <li>BIA fat-mass change: {escape(_num(body.get('fat_change_window_kg'), 2, ' kg'))}; BIA lean-mass change: {escape(_num(body.get('bia_lean_change_window_kg'), 2, ' kg'))}</li>
 <li>Loss pace: {escape(_num(body.get('loss_rate_pct_week'), 2, '%/week'))}</li>
 <li>Strength: {strength.get('up', 0)} up / {strength.get('flat', 0)} flat / {strength.get('down', 0)} down</li>
