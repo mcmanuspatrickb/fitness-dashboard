@@ -234,7 +234,7 @@ def main() -> None:
 
     if fat_delta_4w is not None and lean_delta_4w is not None:
         observations.append(
-            f"Over the four-week comparison window, fat mass changed by {float(fat_delta_4w):+.2f} kg and BIA-estimated lean mass by {float(lean_delta_4w):+.2f} kg."
+            f"Across the comparison window (latest 7-day average vs first 7-day average; midpoints 21 days apart), fat mass changed by {float(fat_delta_4w):+.2f} kg and BIA-estimated lean mass by {float(lean_delta_4w):+.2f} kg."
         )
         if fat_share_of_loss is not None:
             observations.append(
@@ -357,9 +357,9 @@ def main() -> None:
         "",
         "Personal Trend",
         "--------------",
-        f"4-week weight change: {_num(weight_delta_4w, 2, ' kg')}",
-        f"4-week fat-mass change: {_num(fat_delta_4w, 2, ' kg')}",
-        f"4-week BIA lean-mass change: {_num(lean_delta_4w, 2, ' kg')}",
+        f"comparison-window weight change (latest 7d avg vs first 7d avg; midpoints 21d apart): {_num(weight_delta_4w, 2, ' kg')}",
+        f"comparison-window fat-mass change: {_num(fat_delta_4w, 2, ' kg')}",
+        f"comparison-window BIA lean-mass change: {_num(lean_delta_4w, 2, ' kg')}",
         f"BIA-estimated fat share of weight loss: {_num(fat_share_of_loss, 0, '%')}",
         f"Recent weight-loss pace: {_num(pace, 2, '% of body weight/week')}",
         f"Canonical planning maintenance: {_num(energy.get('estimated_tdee'), 0, ' kcal/day')}",
