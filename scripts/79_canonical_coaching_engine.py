@@ -468,7 +468,7 @@ def main() -> None:
     elif pace is not None and pace > 0.15:
         fat_state = "PROGRESSING_SLOWLY"
     else:
-        fat_state = "NOT_CONFIRMED"
+        fat_state = "NO_OR_LITTLE_PROGRESS"
 
     concern_evidence: list[str] = []
     reassuring_evidence: list[str] = []
@@ -515,6 +515,7 @@ def main() -> None:
         "action": calorie.get("action", "HOLD"),
         "calorie_adjustment": calorie.get("final_calorie_adjustment", calorie.get("original_calorie_adjustment", 0)),
         "target_intake": calorie.get("target_intake"),
+        "theoretical_model_intake": calorie.get("theoretical_model_intake"),
         "target_deficit": calorie.get("target_deficit"),
     }
 
@@ -568,6 +569,7 @@ def main() -> None:
         },
         "body": {
             "recent_weight_kg": recent_weight,
+            "comparison_window": "latest 7-day average vs first 7-day average; weekly-average midpoints are 21 days apart",
             "weight_change_window_kg": _float(trend.get("weight_delta")),
             "fat_change_window_kg": fat_delta,
             "bia_lean_change_window_kg": lean_delta,
