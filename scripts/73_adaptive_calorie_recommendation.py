@@ -286,10 +286,13 @@ def main() -> None:
         notes.append("Rolling TDEE could not be estimated with sufficient coverage, so no calorie adjustment is made from energy-balance math this week.")
 
     if recommendation == "INCREASE":
+        actionable_target = _round_to_25(float(current_calories) + calorie_change) if current_calories is not None else target_calories
         macro_hint = f"Add about {calorie_change} kcal/day for the next week while protecting the protein target and training quality."
     elif recommendation == "DECREASE":
+        actionable_target = _round_to_25(float(current_calories) + calorie_change) if current_calories is not None else target_calories
         macro_hint = f"Reduce by about {abs(calorie_change)} kcal/day for the next week, preferably from discretionary carbs/fats rather than protein."
     else:
+        actionable_target = _round_to_25(float(current_calories)) if current_calories is not None else None
         macro_hint = "Hold calories steady for the next week and reassess from the next multi-week trend."
 
     lines = [
@@ -309,15 +312,16 @@ def main() -> None:
         f"rolling 28-day loss pace: {_fmt(pace, 2)}% body weight/week",
         f"energy-balance coverage (28d): {energy.get('coverage_confidence', 'LOW')} ({energy.get('calorie_days', 0)} nutrition days; {energy.get('weight_days', 0)} weight days)",
         f"model target deficit: {_fmt(target_deficit, 0)} kcal/day",
-        f"model target intake: {_fmt(target_calories, 0)} kcal/day", "",
+        f"theoretical model intake: {_fmt(target_calories, 0)} kcal/day",
+        f"actionable target intake: {_fmt(actionable_target, 0)} kcal/day", "",
         "Current Trend", "-------------",
         f"7-day calories: {_fmt(current_calories, 0)} kcal/day",
         f"28-day calories: {_fmt(avg_calories_28, 0)} kcal/day",
         f"7-day protein: {_fmt(weekly.get('recent_protein'), 0)} g/day",
         f"7-day steps: {_fmt(weekly.get('recent_steps'), 0)} /day",
         f"7-day sleep: {_fmt(weekly.get('recent_sleep'), 2)} h/night",
-        f"4-week fat-mass change: {_fmt(fat_delta_4w)} kg",
-        f"4-week BIA lean-mass change: {_fmt(lean_delta_4w)} kg", "",
+        f"comparison-window fat-mass change (latest 7d avg vs first 7d avg; midpoints 21d apart): {_fmt(fat_delta_4w)} kg",
+        f"comparison-window BIA lean-mass change (same 21d midpoint interval): {_fmt(lean_delta_4w)} kg", "",
         "Strength Context", "----------------",
         f"4-week lifts up: {strength_up}", f"4-week lifts flat: {strength_flat}", f"4-week lifts down: {strength_down}", "",
         "Personal-Response Evidence", "--------------------------",
