@@ -89,7 +89,7 @@ def _parse_recommendation(text: str) -> dict[str, Any]:
         "calorie_adjustment": int(adjustment_match.group(1)) if adjustment_match else 0,
         "analysis_end_date": end_match.group(1) if end_match else None,
         "phase": phase_match.group(1) if phase_match else "cut",
-        "target_intake": _extract_number(text, "model target intake"),
+        "target_intake": _extract_number(text, "actionable target intake") or _extract_number(text, "model target intake"),
         "estimated_tdee": _extract_number(text, "consensus planning maintenance") or _extract_number(text, "rolling 28-day estimated maintenance"),
         "target_deficit": _extract_number(text, "model target deficit"),
         "reason": why,
