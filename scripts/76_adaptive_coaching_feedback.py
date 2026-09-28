@@ -90,6 +90,7 @@ def _parse_recommendation(text: str) -> dict[str, Any]:
         "analysis_end_date": end_match.group(1) if end_match else None,
         "phase": phase_match.group(1) if phase_match else "cut",
         "target_intake": _extract_number(text, "actionable target intake") or _extract_number(text, "model target intake"),
+        "theoretical_model_intake": _extract_number(text, "theoretical model intake"),
         "estimated_tdee": _extract_number(text, "consensus planning maintenance") or _extract_number(text, "rolling 28-day estimated maintenance"),
         "target_deficit": _extract_number(text, "model target deficit"),
         "reason": why,
@@ -421,7 +422,7 @@ def _report(history: pd.DataFrame, parsed: dict[str, Any], adjustment: int) -> s
         "Current Decision", "----------------",
         f"decision date: {decision_date}", f"analysis data through: {parsed['analysis_end_date']}",
         f"phase: {parsed.get('phase', 'cut')}", f"action: {parsed['action']}",
-        f"calorie adjustment: {adjustment:+d} kcal/day", f"model target intake: {_num(parsed['target_intake'], 0)} kcal/day",
+        f"calorie adjustment: {adjustment:+d} kcal/day", f"actionable target intake: {_num(parsed['target_intake'], 0)} kcal/day",
     ]
     if current_row is not None:
         lines.extend([
@@ -490,6 +491,7 @@ def main() -> None:
         "analysis_end_date": parsed["analysis_end_date"], "phase": parsed.get("phase", "cut"),
         "action": parsed["action"], "original_calorie_adjustment": original_adjustment,
         "final_calorie_adjustment": final_adjustment, "target_intake": parsed["target_intake"],
+        "theoretical_model_intake": parsed.get("theoretical_model_intake"),
         "estimated_tdee": parsed["estimated_tdee"], "target_deficit": parsed["target_deficit"],
         "feedback_evidence": evidence,
     }
