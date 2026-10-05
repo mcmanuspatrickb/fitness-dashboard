@@ -108,6 +108,24 @@ def _load_history() -> pd.DataFrame:
     for column in HISTORY_COLUMNS:
         if column not in history.columns:
             history[column] = pd.NA
+
+    # CSV columns that were previously entirely empty can be inferred by pandas
+    # as float64. Outcome/status/adherence/date fields later receive strings, so
+    # force those mixed/text columns to object before evaluating matured windows.
+    text_fields = {"decision_id", "decision_date", "analysis_end_date", "phase", "action", "decision_reason", "created_at_utc", "updated_at_utc"}
+    for horizon in (7, 14, 28):
+        text_fields.update({
+            f"outcome{horizon}_status",
+            f"outcome{horizon}_evaluated_date",
+            f"outcome{horizon}_calorie_adherence",
+            f"outcome{horizon}_protein_adherence",
+            f"outcome{horizon}_sleep_adherence",
+            f"outcome{horizon}_training_adherence",
+            f"outcome{horizon}_steps_adherence",
+        })
+    for column in text_fields:
+        if column in history.columns:
+            history[column] = history[column].astype("object")
     return history[HISTORY_COLUMNS].copy()
 
 
