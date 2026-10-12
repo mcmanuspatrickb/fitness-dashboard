@@ -110,8 +110,9 @@ def _load_history() -> pd.DataFrame:
             history[column] = pd.NA
 
     # CSV columns that were previously entirely empty can be inferred by pandas
-    # as float64. Outcome/status/adherence/date fields later receive strings, so
-    # force those mixed/text columns to object before evaluating matured windows.
+    # as float64. Outcome/status/adherence/date fields receive strings, while
+    # outcome*_confounded receives booleans. Preserve all of these as object
+    # columns before evaluating matured windows (pandas 3 rejects upcasting).
     text_fields = {"decision_id", "decision_date", "analysis_end_date", "phase", "action", "decision_reason", "created_at_utc", "updated_at_utc"}
     for horizon in (7, 14, 28):
         text_fields.update({
@@ -122,6 +123,7 @@ def _load_history() -> pd.DataFrame:
             f"outcome{horizon}_sleep_adherence",
             f"outcome{horizon}_training_adherence",
             f"outcome{horizon}_steps_adherence",
+            f"outcome{horizon}_confounded",
         })
     for column in text_fields:
         if column in history.columns:
