@@ -1,0 +1,30 @@
+name: Adaptive Feedback Regression Tests
+
+on:
+  pull_request:
+    paths:
+      - "scripts/76_adaptive_coaching_feedback.py"
+      - "tests/test_adaptive_coaching_feedback.py"
+      - ".github/workflows/adaptive_feedback_tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install weekly dependencies
+        run: pip install -r weekly_requirements.txt
+
+      - name: Test adaptive coaching feedback
+        run: python -m unittest discover -s tests -p "test_adaptive_coaching_feedback.py" -v
