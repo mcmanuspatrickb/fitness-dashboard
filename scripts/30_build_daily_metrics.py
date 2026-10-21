@@ -26,6 +26,7 @@ INSERT INTO analytics.daily_metrics (
     workout_count,
     training_volume,
     fasting_state,
+    fasting_hours,
     mounjaro_mg,
     hunger_score
 )
@@ -59,6 +60,7 @@ SELECT
     ts.workout_count,
     ts.total_volume AS training_volume,
     COALESCE(i.fasting_state, 'normal') AS fasting_state,
+    i.fasting_hours,
     i.mounjaro_mg,
     i.hunger_score
 FROM date_spine d
@@ -111,6 +113,7 @@ SELECT
     workout_count,
     training_volume,
     fasting_state,
+    fasting_hours,
     mounjaro_mg,
     hunger_score
 FROM analytics.daily_metrics
