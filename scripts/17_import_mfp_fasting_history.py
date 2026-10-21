@@ -1,4 +1,5 @@
 from pathlib import Path
+import sys
 
 import duckdb
 import pandas as pd
@@ -9,7 +10,12 @@ FILE_PATH = PROJECT_ROOT / "data_raw" / "historical" / "MFP_Historical_Data.xlsx
 SHEET_NAME = "Historical Fasting Periods"
 
 if not FILE_PATH.exists():
-    raise FileNotFoundError(f"File not found: {FILE_PATH}")
+    print(
+        f"WARNING: Historical MFP workbook not found: {FILE_PATH}. "
+        "Skipping backfill; existing historical rows remain unchanged. "
+        "Restore the workbook to refresh historical eating/fasting data."
+    )
+    sys.exit(0)
 
 # Read Excel
 df = pd.read_excel(FILE_PATH, sheet_name=SHEET_NAME)
