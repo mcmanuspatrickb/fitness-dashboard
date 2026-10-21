@@ -78,7 +78,7 @@ def main() -> None:
                 fasting_state,
                 LAG(date) OVER (ORDER BY date) AS prev_date
             FROM clean.interventions_daily
-            WHERE fasting_state = 'extended_fast'
+            WHERE LOWER(TRIM(fasting_state)) IN ('extended_fast', 'ef', 'extended fast', 'extended fasting')
         ),
         flagged AS (
             SELECT
@@ -147,7 +147,8 @@ def main() -> None:
     lines.append("Extended Fast Blocks")
     lines.append("--------------------")
     if ef_blocks_df.empty:
-        lines.append("No extended_fast blocks found.")
+        lines.append("No extended fasting blocks found in the currently imported records.")
+        lines.append("WARNING: This does not establish that no historical fasting occurred.")
     else:
         for _, row in ef_blocks_df.iterrows():
             lines.append(
@@ -155,6 +156,19 @@ def main() -> None:
                 f"{row['start_date']}→{row['end_date']} | "
                 f"days={int(row['day_count'])} | implied_hours={int(row['implied_hours'])}"
             )
+
+    historical_rows = clean_df[
+        clean_df["notes"].fillna("").str.startswith(
+            ("mfp_historical_fasting", "historical_fasting_import")
+        )
+    ]
+    lines.append("")
+    lines.append("Historical Source Coverage")
+    lines.append("--------------------------")
+    lines.append(f"historical_import_rows: {len(historical_rows)}")
+    if historical_rows.empty:
+        lines.append("WARNING: No historical MFP intervention rows are currently available.")
+        lines.append("Restore data_raw/historical/MFP_Historical_Data.xlsx for backfill.")
 
     lines.append("")
     lines.append("Recent Intervention Preview")

@@ -1,0 +1,42 @@
+name: Historical Fasting Regression Tests
+
+on:
+  pull_request:
+    paths:
+      - "scripts/10_ingest_interventions.py"
+      - "scripts/16_import_mfp_history.py"
+      - "scripts/17_import_mfp_fasting_history.py"
+      - "scripts/20_build_clean_interventions.py"
+      - "scripts/30_build_daily_metrics.py"
+      - "scripts/41_build_historical_daily_metrics.py"
+      - "scripts/42_historical_fasting_comparison.py"
+      - "scripts/43_identify_fasting_blocks.py"
+      - "scripts/44_filtered_fasting_blocks.py"
+      - "scripts/53_export_intervention_audit.py"
+      - "scripts/67_historical_fast_refeed_cycles.py"
+      - "scripts/99_run_pipeline.py"
+      - "tests/test_historical_fasting.py"
+      - ".github/workflows/historical_fasting_tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  historical-fast-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: pip install duckdb==1.5.0 pandas==3.0.1
+
+      - name: Test fasting history retention and reports
+        run: python -m unittest discover -s tests -p "test_historical_fasting.py" -v

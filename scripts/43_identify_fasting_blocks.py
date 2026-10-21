@@ -38,12 +38,15 @@ def main() -> None:
         return
 
     df["date"] = pd.to_datetime(df["date"])
-    df["fasting_state"] = df["fasting_state"].astype("string").str.strip().str.lower()
+    df["fasting_state"] = (
+        df["fasting_state"].astype("string").str.strip().str.lower()
+        .replace({"ef": "extended_fast", "extended fasting": "extended_fast",
+                  "extended fast": "extended_fast",
+                  "intermittent fasting": "if", "one meal a day": "omad"})
+    )
 
-    # Keep only explicit fasting interventions
-    df = df[df["fasting_state"].notna()].copy()
-    df = df[df["fasting_state"] != "normal"].copy()
-    df = df[df["fasting_state"] != ""].copy()
+    # Unknown or missing labels must never be interpreted as documented fasts.
+    df = df[df["fasting_state"].isin(["extended_fast", "if", "omad"])].copy()
 
     if df.empty:
         print("No non-normal fasting blocks found.")

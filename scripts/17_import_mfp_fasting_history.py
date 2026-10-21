@@ -1,4 +1,5 @@
 from pathlib import Path
+import sys
 
 import duckdb
 import pandas as pd
@@ -9,7 +10,12 @@ FILE_PATH = PROJECT_ROOT / "data_raw" / "historical" / "MFP_Historical_Data.xlsx
 SHEET_NAME = "Historical Fasting Periods"
 
 if not FILE_PATH.exists():
-    raise FileNotFoundError(f"File not found: {FILE_PATH}")
+    print(
+        f"WARNING: Historical MFP workbook not found: {FILE_PATH}. "
+        "Skipping backfill; existing historical rows remain unchanged. "
+        "Restore the workbook to refresh historical eating/fasting data."
+    )
+    sys.exit(0)
 
 # Read Excel
 df = pd.read_excel(FILE_PATH, sheet_name=SHEET_NAME)
@@ -35,11 +41,16 @@ habit_df["Eating Habits"] = (
     .str.strip()
 )
 
-# Collapse to one row per date
+# Multiple meal-level records may carry different habits for the same date.
+# Select the strongest explicit label instead of letting the last meal erase EF.
+priority = {"ef": 4, "omad": 3, "if": 2, "normal": 1, "baseline": 1}
+habit_df["priority"] = (
+    habit_df["Eating Habits"].str.lower().map(priority).fillna(0)
+)
 habit_df = (
-    habit_df.groupby("Date", dropna=True)["Eating Habits"]
-    .last()
-    .reset_index()
+    habit_df.sort_values(["Date", "priority"], ascending=[True, False], kind="stable")
+    .drop_duplicates(subset=["Date"], keep="first")
+    .drop(columns=["priority"])
 )
 
 def map_fasting_state(habit: str) -> str:
@@ -54,8 +65,8 @@ def map_fasting_state(habit: str) -> str:
     if h in {"normal", "baseline"}:
         return "normal"
 
-    # default fallback
-    return "normal"
+    # Unrecognized labels must not be silently interpreted as normal eating.
+    return None
 
 habit_df["fasting_state"] = habit_df["Eating Habits"].apply(map_fasting_state)
 habit_df["fasting_hours"] = None

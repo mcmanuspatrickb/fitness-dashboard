@@ -58,7 +58,13 @@ for col in ["fasting_hours", "mounjaro_mg", "hunger_score"]:
 
 con = duckdb.connect(str(DB_PATH))
 
-con.execute("DELETE FROM raw.interventions_daily")
+# Preserve historical MFP/intervention imports when refreshing live Sheet entries.
+# Historical rows are maintained by their own source-specific importers.
+con.execute("""
+DELETE FROM raw.interventions_daily
+WHERE COALESCE(notes, '') NOT LIKE 'mfp_historical_fasting%'
+  AND COALESCE(notes, '') NOT LIKE 'historical_fasting_import%'
+""")
 con.register("interventions_df", df)
 
 con.execute("""

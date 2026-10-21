@@ -8,6 +8,7 @@ df = pd.read_csv(REPORTS_DIR / "fasting_blocks_analysis.csv")
 # minimum durations
 min_days = {
     "ef": 2,
+    "extended_fast": 2,
     "omad": 7,
     "if": 14,
     "normal": 14
