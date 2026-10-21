@@ -31,7 +31,18 @@ INSERT INTO clean.interventions_daily (
 WITH ranked AS (
     SELECT
         date,
-        LOWER(TRIM(fasting_state)) AS fasting_state,
+        CASE
+            WHEN LOWER(TRIM(fasting_state)) IN
+                ('ef', 'extended_fast', 'extended fast', 'extended fasting')
+                THEN 'extended_fast'
+            WHEN LOWER(TRIM(fasting_state)) IN
+                ('if', 'intermittent fasting') THEN 'if'
+            WHEN LOWER(TRIM(fasting_state)) IN
+                ('omad', 'one meal a day') THEN 'omad'
+            WHEN LOWER(TRIM(fasting_state)) IN
+                ('normal', 'baseline', 'fed', 'none') THEN 'normal'
+            ELSE NULLIF(LOWER(TRIM(fasting_state)), '')
+        END AS fasting_state,
         fasting_hours,
         mounjaro_mg,
         hunger_score,
