@@ -41,11 +41,16 @@ habit_df["Eating Habits"] = (
     .str.strip()
 )
 
-# Collapse to one row per date
+# Multiple meal-level records may carry different habits for the same date.
+# Select the strongest explicit label instead of letting the last meal erase EF.
+priority = {"ef": 4, "omad": 3, "if": 2, "normal": 1, "baseline": 1}
+habit_df["priority"] = (
+    habit_df["Eating Habits"].str.lower().map(priority).fillna(0)
+)
 habit_df = (
-    habit_df.groupby("Date", dropna=True)["Eating Habits"]
-    .last()
-    .reset_index()
+    habit_df.sort_values(["Date", "priority"], ascending=[True, False], kind="stable")
+    .drop_duplicates(subset=["Date"], keep="first")
+    .drop(columns=["priority"])
 )
 
 def map_fasting_state(habit: str) -> str:
@@ -60,8 +65,8 @@ def map_fasting_state(habit: str) -> str:
     if h in {"normal", "baseline"}:
         return "normal"
 
-    # default fallback
-    return "normal"
+    # Unrecognized labels must not be silently interpreted as normal eating.
+    return None
 
 habit_df["fasting_state"] = habit_df["Eating Habits"].apply(map_fasting_state)
 habit_df["fasting_hours"] = None
