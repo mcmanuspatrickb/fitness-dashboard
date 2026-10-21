@@ -35,7 +35,10 @@ df = con.execute("""
 con.close()
 
 if df.empty:
-    raise RuntimeError("No historical fasting comparison data found.")
+    print(
+        "WARNING: No historical MFP fasting/nutrition matches found. "
+        "The output will be empty until the historical source is restored."
+    )
 
 output_path = REPORTS_DIR / "historical_fasting_comparison.csv"
 df.to_csv(output_path, index=False)
