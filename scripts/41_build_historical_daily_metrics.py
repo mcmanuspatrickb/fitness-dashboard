@@ -17,9 +17,14 @@ INSERT INTO analytics.historical_daily_metrics (
     resting_hr,
     hrv,
     calories,
+    protein_g,
+    carbs_g,
+    fat_g,
+    fiber_g,
     workout_count,
     training_volume,
     fasting_state,
+    fasting_hours,
     mounjaro_mg,
     nutrition_source
 )
@@ -33,9 +38,14 @@ SELECT
     dm.resting_hr,
     dm.hrv,
     dm.calories,
+    dm.protein_g,
+    dm.carbs_g,
+    dm.fat_g,
+    dm.fiber_g,
     dm.workout_count,
     dm.training_volume,
     COALESCE(dm.fasting_state, 'normal') AS fasting_state,
+    dm.fasting_hours,
     dm.mounjaro_mg,
     n.source AS nutrition_source
 FROM analytics.daily_metrics dm
