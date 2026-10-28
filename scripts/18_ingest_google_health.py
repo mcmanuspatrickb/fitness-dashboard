@@ -412,10 +412,12 @@ def load_nutrition(token: str, start_date: date, end_date: date) -> pd.DataFrame
     daily_rows = []
     for day, day_items in items.groupby("date", sort=True):
         cronometer_items = day_items[day_items["is_cronometer_health_connect"]]
-        fitbit_summaries = day_items[day_items["is_fitbit_web_summary"]]
-        kept = day_items
-        if not cronometer_items.empty and not fitbit_summaries.empty:
-            kept = day_items[~day_items["is_fitbit_web_summary"]]
+        # Only Cronometer Health Connect entries are authoritative nutrition.
+        # Never sum Fitbit daily summaries alongside individual Cronometer foods.
+        # An unlogged day is missing data, NOT a confirmed zero-calorie fast.
+        if cronometer_items.empty:
+            continue
+        kept = cronometer_items
 
         daily_rows.append(
             {
@@ -428,6 +430,58 @@ def load_nutrition(token: str, start_date: date, end_date: date) -> pd.DataFrame
         )
 
     return pd.DataFrame(daily_rows)
+
+
+
+def load_total_calories_burned(
+    token: str, start_date: date, end_date: date
+) -> pd.DataFrame:
+    """Google Health's derived full-day expenditure, not active-only calories.
+
+    Total-calories rollups are limited to 14-day query windows; partition the
+    lookback to avoid silently truncating the calendar period.
+    """
+    rows = []
+    chunk_start = start_date
+    end_exclusive = end_date + timedelta(days=1)
+    while chunk_start < end_exclusive:
+        chunk_end = min(chunk_start + timedelta(days=14), end_exclusive)
+        body = {
+            "range": {
+                "start": _civil_midnight(chunk_start),
+                "end": _civil_midnight(chunk_end),
+            },
+            "windowSizeDays": 1,
+            "pageSize": 14,
+        }
+        page_token = None
+        while True:
+            request_body = dict(body)
+            if page_token:
+                request_body["pageToken"] = page_token
+            payload = _request(
+                token, "POST",
+                "users/me/dataTypes/total-calories/dataPoints:dailyRollUp",
+                json_body=request_body,
+            )
+            for point in payload.get("rollupDataPoints", []):
+                timestamp = _date_dict_to_timestamp(
+                    point.get("civilStartTime", {}).get("date")
+                )
+                value = (point.get("totalCalories") or {}).get("kcalSum")
+                if timestamp is not None and value is not None:
+                    rows.append({
+                        "date": timestamp.date(),
+                        "calories_burned": float(value),
+                    })
+            next_page = payload.get("nextPageToken") or None
+            if not next_page or next_page == page_token:
+                break
+            page_token = next_page
+        chunk_start = chunk_end
+    if not rows:
+        return pd.DataFrame(columns=["date", "calories_burned"])
+    return pd.DataFrame(rows).drop_duplicates(subset=["date"], keep="last")
 
 
 def _ensure_raw_fitbit_columns(con: duckdb.DuckDBPyConnection) -> None:
@@ -508,16 +562,24 @@ def main() -> None:
     recovery = load_recovery(token, start_date, end_exclusive)
     sleep = load_sleep(token, start_date, end_exclusive)
     nutrition = load_nutrition(token, start_date, end_date)
+    try:
+        energy = load_total_calories_burned(token, start_date, end_date)
+    except (RuntimeError, requests.RequestException, ValueError) as exc:
+        # Preserve nutrition/recovery syncing if the expenditure endpoint is
+        # temporarily unavailable or the OAuth scope needs reauthorization.
+        print(f"WARNING: Google Health total-calories unavailable ({type(exc).__name__}); leaving daily expenditure blank.")
+        energy = pd.DataFrame(columns=["date", "calories_burned"])
 
     daily = pd.DataFrame({
         "date": pd.date_range(start_date, end_date, freq="D").date
     })
-    for frame in (steps, recovery, sleep):
+    for frame in (steps, recovery, sleep, energy):
         if not frame.empty:
             daily = daily.merge(frame, on="date", how="left")
 
     for column in (
         "steps",
+        "calories_burned",
         "resting_hr",
         "hrv",
         "sleep_hours",
@@ -528,7 +590,6 @@ def main() -> None:
         if column not in daily.columns:
             daily[column] = pd.NA
 
-    daily["calories_burned"] = pd.NA
     daily["active_minutes"] = pd.NA
     daily["sleep_efficiency"] = pd.NA
     daily["sleep_score"] = pd.NA
@@ -602,6 +663,11 @@ def main() -> None:
     print(f"Google Health nutrition days loaded: {len(nutrition)}")
     print(f"Latest activity/recovery date: {latest_activity}")
     print(f"Latest nutrition date: {latest_nutrition}")
+
+    # Run only after the DuckDB transaction succeeds; the mirror is private and
+    # idempotent, and the existing local analytics workflow is unchanged.
+    from sync_google_health_to_neon import mirror_daily_to_neon
+    mirror_daily_to_neon(start_date, end_date)
 
 
 if __name__ == "__main__":
