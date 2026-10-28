@@ -72,9 +72,9 @@ def mirror_daily_to_neon(start_date: date, end_date: date, db_path: Path = DB_PA
     nutrition_rows, activity_rows = read_daily_rows(start_date, end_date, db_path)
 
     with psycopg.connect(database_url) as conn:
-        with conn.transaction():
+        with conn.cursor() as cur:
             if nutrition_rows:
-                conn.executemany(
+                cur.executemany(
                     """
                     INSERT INTO google_health_nutrition_daily
                         (day, calories_kcal, protein_g, carbohydrates_g, fat_g,
@@ -91,7 +91,7 @@ def mirror_daily_to_neon(start_date: date, end_date: date, db_path: Path = DB_PA
                     nutrition_rows
                 )
             if activity_rows:
-                conn.executemany(
+                cur.executemany(
                     """
                     INSERT INTO google_health_activity_daily
                         (day, steps, energy_burned_kcal, resting_hr_bpm, hrv_ms,
