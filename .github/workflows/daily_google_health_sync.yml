@@ -1,0 +1,44 @@
+name: Daily Google Health → Neon Sync
+
+on:
+  schedule:
+    # Previous complete day, 08:10 CET / 09:10 CEST.
+    - cron: "10 7 * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/daily_google_health_sync.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: google-health-daily-neon-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out fitness dashboard
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install pipeline dependencies
+        run: pip install -r weekly_requirements.txt
+
+      - name: Sync Google Health / Cronometer to private Neon
+        env:
+          WITHINGS_DATABASE_URL: ${{ secrets.WITHINGS_DATABASE_URL }}
+          GOOGLE_HEALTH_CLIENT_ID: ${{ secrets.GOOGLE_HEALTH_CLIENT_ID }}
+          GOOGLE_HEALTH_CLIENT_SECRET: ${{ secrets.GOOGLE_HEALTH_CLIENT_SECRET }}
+          GOOGLE_HEALTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_HEALTH_REFRESH_TOKEN }}
+          GOOGLE_HEALTH_LOOKBACK_DAYS: "60"
+        run: |
+          test -n "$WITHINGS_DATABASE_URL" || (echo "Missing Neon database configuration" && exit 1)
+          python scripts/18_ingest_google_health.py
