@@ -1,0 +1,19 @@
+name: Google Health Mirror Tests
+on:
+  push:
+    paths:
+      - "tests/test_google_health_neon_mirror.py"
+      - ".github/workflows/google_health_mirror_tests.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pip install -r weekly_requirements.txt
+      - run: python -m unittest discover -s tests -p "test_google_health_neon_mirror.py" -v
