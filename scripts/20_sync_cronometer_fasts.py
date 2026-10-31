@@ -143,14 +143,14 @@ def extract_fasts(payload):
 
 def persist(rows):
     import psycopg
-    with psycopg.connect(required("WITHINGS_DATABASE_URL")) as conn:
+    with psycopg.connect(required("WITHINGS_DATABASE_URL")) as conn, conn.cursor() as cur:
         conn.execute("""CREATE TABLE IF NOT EXISTS cronometer_fasting_intervals (
             fast_id TEXT PRIMARY KEY, start_at TIMESTAMPTZ NOT NULL,
             end_at TIMESTAMPTZ, name TEXT,
             source TEXT NOT NULL DEFAULT 'cronometer_mobile_read_only',
             synced_at TIMESTAMPTZ NOT NULL DEFAULT now())""")
         if rows:
-            conn.executemany("""INSERT INTO cronometer_fasting_intervals
+            cur.executemany("""INSERT INTO cronometer_fasting_intervals
                 (fast_id,start_at,end_at,name) VALUES (%s,%s,%s,%s)
                 ON CONFLICT(fast_id) DO UPDATE SET start_at=excluded.start_at,
                 end_at=excluded.end_at,name=excluded.name,synced_at=now()""", rows)
