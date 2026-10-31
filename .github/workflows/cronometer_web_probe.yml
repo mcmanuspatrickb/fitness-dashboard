@@ -6,6 +6,7 @@ on:
       - feature/cronometer-web-fasting-probe
     paths:
       - .github/workflows/cronometer_web_probe.yml
+      - scripts/21_probe_cronometer_web_fasts.py
   workflow_dispatch:
 
 permissions:
