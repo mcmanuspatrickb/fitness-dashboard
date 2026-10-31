@@ -1,6 +1,9 @@
 name: Manual Cronometer Fasting Probe
 
 on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/manual_cronometer_fasting_probe.yml]
   workflow_dispatch:
 
 permissions:
