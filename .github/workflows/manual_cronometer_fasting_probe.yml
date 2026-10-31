@@ -1,6 +1,9 @@
 name: Manual Cronometer Fasting Probe
 
 on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/manual_cronometer_fasting_probe.yml]
   workflow_dispatch:
 
 permissions:
@@ -21,6 +24,7 @@ jobs:
         env:
           CRONOMETER_USERNAME: ${{ secrets.CRONOMETER_USERNAME || secrets.CRONOMETER_EMAIL }}
           CRONOMETER_PASSWORD: ${{ secrets.CRONOMETER_PASSWORD }}
+          CRONOMETER_PROBE_STATS: "1"
         run: |
           test -n "$CRONOMETER_USERNAME" || { echo "Missing CRONOMETER_USERNAME (or CRONOMETER_EMAIL) GitHub secret"; exit 1; }
           test -n "$CRONOMETER_PASSWORD" || { echo "Missing CRONOMETER_PASSWORD GitHub secret"; exit 1; }
