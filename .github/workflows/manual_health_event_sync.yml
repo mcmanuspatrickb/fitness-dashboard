@@ -2,9 +2,6 @@ name: Manual Health Event Timeline Refresh
 # One-time isolated integration retry: Google Health continues if Hevy credential is rejected.
 
 on:
-  push:
-    branches: [feature/fasting-exercise-timeline]
-    paths: [.github/workflows/manual_health_event_sync.yml]
   workflow_dispatch:
 
 permissions:
