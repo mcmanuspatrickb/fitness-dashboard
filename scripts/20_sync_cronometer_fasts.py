@@ -170,7 +170,14 @@ def main():
     if not args.sync:
         # Never print actual fasts, login details, access tokens, or response bodies.
         list_shapes = {k: len(v) for k, v in payload.items() if isinstance(v, list)}
-        print(f"Read-only fasting probe: keys={sorted(payload.keys())}; list_counts={list_shapes}")
+        messages = payload.get("messages")
+        message_shapes = []
+        if isinstance(messages, list):
+            for item in messages[:3]:
+                message_shapes.append(sorted(item.keys()) if isinstance(item, dict)
+                                      else type(item).__name__)
+        print(f"Read-only fasting probe: keys={sorted(payload.keys())}; "
+              f"list_counts={list_shapes}; message_shapes={message_shapes}")
         return
     persist(extract_fasts(payload))
 
