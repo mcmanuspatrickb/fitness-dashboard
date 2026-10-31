@@ -1,0 +1,35 @@
+name: Manual Cronometer Food Entry Timestamp Sync
+
+on:
+  push:
+    branches: [feature/cronometer-meal-timestamps-20261031]
+    paths: [.github/workflows/manual_cronometer_food_times.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cronometer-food-timestamp-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Run fictional-data parser tests
+        run: python -m unittest discover -s tests -p test_cronometer_food_times.py -v
+      - name: Install pinned read-only Cronometer reader and Postgres client
+        run: pip install --disable-pip-version-check "git+https://github.com/cphoskins/cronometer-mcp.git@0f11757011f8e9a94e5ae3572cfe7cdeff419d7d" "psycopg[binary]>=3.2,<4"
+      - name: Import timestamped servings into private Neon
+        env:
+          CRONOMETER_USERNAME: ${{ secrets.CRONOMETER_USERNAME || secrets.CRONOMETER_EMAIL }}
+          CRONOMETER_PASSWORD: ${{ secrets.CRONOMETER_PASSWORD }}
+          CRONOMETER_DATA_DIR: ${{ runner.temp }}/cronometer
+          WITHINGS_DATABASE_URL: ${{ secrets.WITHINGS_DATABASE_URL }}
+        run: python scripts/24_sync_cronometer_food_times.py --days 30
