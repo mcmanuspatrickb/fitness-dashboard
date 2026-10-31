@@ -1,0 +1,27 @@
+name: Manual Cronometer Fasting Probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install minimal HTTP dependency
+        run: python -m pip install requests==2.32.5
+      - name: Inspect fasting history schema without exporting user records
+        env:
+          CRONOMETER_USERNAME: ${{ secrets.CRONOMETER_USERNAME || secrets.CRONOMETER_EMAIL }}
+          CRONOMETER_PASSWORD: ${{ secrets.CRONOMETER_PASSWORD }}
+        run: |
+          test -n "$CRONOMETER_USERNAME" || { echo "Missing CRONOMETER_USERNAME (or CRONOMETER_EMAIL) GitHub secret"; exit 1; }
+          test -n "$CRONOMETER_PASSWORD" || { echo "Missing CRONOMETER_PASSWORD GitHub secret"; exit 1; }
+          python scripts/20_sync_cronometer_fasts.py --days 60
