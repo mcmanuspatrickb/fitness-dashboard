@@ -1,9 +1,6 @@
 name: Manual Cronometer Food Entry Timestamp Sync
 
 on:
-  push:
-    branches: [feature/cronometer-meal-timestamps-20261031]
-    paths: [.github/workflows/manual_cronometer_food_times.yml]
   workflow_dispatch:
 
 permissions:
