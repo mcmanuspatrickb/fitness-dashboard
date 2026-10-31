@@ -1,0 +1,33 @@
+name: Manual Cronometer Web Fasting Sync
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cronometer-web-fasting-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install pinned web reader and Neon client
+        run: |
+          pip install --disable-pip-version-check "git+https://github.com/cphoskins/cronometer-mcp.git@0f11757011f8e9a94e5ae3572cfe7cdeff419d7d" "psycopg[binary]>=3.2,<4"
+      - name: Validate fictional GWT timestamp cases
+        run: python -m unittest discover -s tests -p test_cronometer_web_fasting.py -v
+      - name: Sync read-only Cronometer history to private Neon
+        env:
+          CRONOMETER_USERNAME: ${{ secrets.CRONOMETER_USERNAME || secrets.CRONOMETER_EMAIL }}
+          CRONOMETER_PASSWORD: ${{ secrets.CRONOMETER_PASSWORD }}
+          CRONOMETER_DATA_DIR: ${{ runner.temp }}/cronometer
+          WITHINGS_DATABASE_URL: ${{ secrets.WITHINGS_DATABASE_URL }}
+        run: python scripts/22_sync_cronometer_web_fasts.py
