@@ -1,6 +1,9 @@
 name: Manual Health Event Timeline Refresh
 
 on:
+  push:
+    branches: [feature/fasting-exercise-timeline]
+    paths: [.github/workflows/manual_health_event_sync.yml]
   workflow_dispatch:
 
 permissions:
