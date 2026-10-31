@@ -1,4 +1,5 @@
 name: Manual Health Event Timeline Refresh
+# One-time isolated integration retry: Google Health continues if Hevy credential is rejected.
 
 on:
   push:
