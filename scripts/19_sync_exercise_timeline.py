@@ -173,7 +173,7 @@ def persist(sessions, sets, exercises):
     url = os.getenv("WITHINGS_DATABASE_URL", "").strip()
     if not url:
         raise RuntimeError("WITHINGS_DATABASE_URL missing")
-    with psycopg.connect(url) as conn:
+    with psycopg.connect(url) as conn, conn.cursor() as cur:
         conn.execute("""CREATE TABLE IF NOT EXISTS hevy_workout_sessions (
             workout_id TEXT PRIMARY KEY, start_at TIMESTAMPTZ NOT NULL,
             end_at TIMESTAMPTZ NOT NULL, title TEXT NOT NULL, description TEXT,
@@ -190,20 +190,20 @@ def persist(sessions, sets, exercises):
             platform TEXT, package_name TEXT, avg_heart_rate_bpm DOUBLE PRECISION,
             synced_at TIMESTAMPTZ NOT NULL DEFAULT now())""")
         if sessions:
-            conn.executemany("""INSERT INTO hevy_workout_sessions
+            cur.executemany("""INSERT INTO hevy_workout_sessions
                 (workout_id,start_at,end_at,title,description) VALUES (%s,%s,%s,%s,%s)
                 ON CONFLICT(workout_id) DO UPDATE SET start_at=excluded.start_at,
                 end_at=excluded.end_at,title=excluded.title,description=excluded.description,
                 synced_at=now()""", sessions)
         if sets:
-            conn.executemany("""INSERT INTO hevy_workout_sets
+            cur.executemany("""INSERT INTO hevy_workout_sets
                 (set_key,workout_id,exercise_title,exercise_index,set_index,set_type,weight_kg,reps,rpe)
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 ON CONFLICT(set_key) DO UPDATE SET exercise_title=excluded.exercise_title,
                 set_type=excluded.set_type,weight_kg=excluded.weight_kg,
                 reps=excluded.reps,rpe=excluded.rpe,synced_at=now()""", sets)
         if exercises:
-            conn.executemany("""INSERT INTO google_health_exercise_sessions
+            cur.executemany("""INSERT INTO google_health_exercise_sessions
                 (source_key,start_at,end_at,exercise_type,title,platform,package_name,avg_heart_rate_bpm)
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
                 ON CONFLICT(source_key) DO UPDATE SET
