@@ -75,6 +75,27 @@ def fetch_history(start: date, end: date, session=None):
     data = response.json()
     if not isinstance(data, dict) or data.get("result") in ("FAIL", "FAILURE"):
         raise RuntimeError("Fasting response unsuccessful or invalid")
+    # Optional read-only diagnostic: the same authenticated session, no second login.
+    # Report only field names and presence of numeric statistics, never private values.
+    if os.getenv("CRONOMETER_PROBE_STATS") == "1":
+        try:
+            stats_response = session.post(f"{HOST}/api/v2/get_fasting_stats", json={
+                "config": {"call_version": 1},
+                "auth": {"userId": user_id, "token": token, "api": 3,
+                         "os": "Android", "build": "2807", "flavour": "free"},
+            }, timeout=30)
+            stats_response.raise_for_status()
+            stats = stats_response.json()
+            if isinstance(stats, dict):
+                numeric_fields = [key for key, value in stats.items()
+                                  if isinstance(value, (int, float)) and not isinstance(value, bool)]
+                positive_fields = [key for key in numeric_fields if stats[key] > 0]
+                print(f"Read-only fasting stats diagnostic: keys={sorted(stats)}; "
+                      f"numeric_fields={numeric_fields}; positive_fields={positive_fields}")
+            else:
+                print("Read-only fasting stats diagnostic: unexpected response type")
+        except (requests.RequestException, ValueError, TypeError):
+            print("Read-only fasting stats diagnostic: request unavailable")
     return data
 
 
