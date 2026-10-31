@@ -176,8 +176,24 @@ def main():
             for item in messages[:3]:
                 message_shapes.append(sorted(item.keys()) if isinstance(item, dict)
                                       else type(item).__name__)
+        # Diagnose only response status, category keywords and lengths, never raw messages.
+        public_keywords = ("error", "invalid", "date", "fast", "missing", "permission",
+                           "authentication", "login", "not found", "empty", "success",
+                           "failed", "range", "start", "end", "record", "timezone")
+        diagnostic = []
+        if isinstance(messages, list):
+            for item in messages[:3]:
+                if not isinstance(item, dict):
+                    continue
+                raw = str(item.get("text") or "")
+                diagnostic.append({
+                    "type": str(item.get("type", ""))[:40],
+                    "keywords": [word for word in public_keywords if word in raw.lower()],
+                    "text_length": len(raw),
+                })
         print(f"Read-only fasting probe: keys={sorted(payload.keys())}; "
-              f"list_counts={list_shapes}; message_shapes={message_shapes}")
+              f"list_counts={list_shapes}; message_shapes={message_shapes}; "
+              f"message_diagnostic={diagnostic}")
         return
     persist(extract_fasts(payload))
 
