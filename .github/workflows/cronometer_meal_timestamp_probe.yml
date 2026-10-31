@@ -1,0 +1,28 @@
+name: Cronometer Meal Timestamp Read-Only Probe
+
+on:
+  push:
+    branches: [feature/cronometer-meal-timestamps-20261031]
+    paths: [.github/workflows/cronometer_meal_timestamp_probe.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install pinned Cronometer reader
+        run: pip install --disable-pip-version-check "git+https://github.com/cphoskins/cronometer-mcp.git@0f11757011f8e9a94e5ae3572cfe7cdeff419d7d"
+      - name: Probe meal entry timestamp coverage, without logging entries
+        env:
+          CRONOMETER_USERNAME: ${{ secrets.CRONOMETER_USERNAME || secrets.CRONOMETER_EMAIL }}
+          CRONOMETER_PASSWORD: ${{ secrets.CRONOMETER_PASSWORD }}
+          CRONOMETER_DATA_DIR: ${{ runner.temp }}/cronometer
+        run: python scripts/23_probe_cronometer_meal_timestamps.py
