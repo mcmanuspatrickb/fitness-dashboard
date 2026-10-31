@@ -1,10 +1,6 @@
 name: Manual Cronometer Web Fasting Sync
 
 on:
-  push:
-    branches: [feature/cronometer-web-fasting-probe]
-    paths:
-      - .github/workflows/manual_cronometer_web_sync.yml
   workflow_dispatch:
 
 permissions:
@@ -34,4 +30,4 @@ jobs:
           CRONOMETER_PASSWORD: ${{ secrets.CRONOMETER_PASSWORD }}
           CRONOMETER_DATA_DIR: ${{ runner.temp }}/cronometer
           WITHINGS_DATABASE_URL: ${{ secrets.WITHINGS_DATABASE_URL }}
-        run: python scripts/22_sync_cronometer_web_fasts.py --validate-screenshots
+        run: python scripts/22_sync_cronometer_web_fasts.py
