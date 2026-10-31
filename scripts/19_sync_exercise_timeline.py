@@ -221,8 +221,19 @@ def main():
         parser.error("--days must be 1..365")
     end = datetime.now(BERLIN).date()
     start = end - timedelta(days=args.days - 1)
-    sessions, sets = hevy_rows(fetch_hevy())
+    sessions, sets = [], []
+    hevy_status = "ok"
+    try:
+        sessions, sets = hevy_rows(fetch_hevy())
+    except requests.HTTPError as exc:
+        code = exc.response.status_code if exc.response is not None else None
+        if code not in (401, 403):
+            raise
+        hevy_status = f"unauthorized_{code}"
+        print(f"Hevy authentication unavailable (HTTP {code}); continuing Google Health independently.")
     exercises = google_exercise_rows(fetch_google_exercises(start, end))
+    if hevy_status != "ok" and not exercises:
+        raise RuntimeError("Both workout sources unavailable; no data persisted")
     if args.dry_run:
         print(f"Dry run: {len(sessions)} Hevy sessions, {len(sets)} sets, {len(exercises)} exercises")
     else:
