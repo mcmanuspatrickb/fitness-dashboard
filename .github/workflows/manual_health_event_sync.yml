@@ -29,9 +29,9 @@ jobs:
         run: pip install -r weekly_requirements.txt
       - name: Refresh Hevy and Google Health exercise sessions to private Neon
         env:
-          HEVY_API_KEY: \${{ secrets.HEVY_API_KEY }}
-          WITHINGS_DATABASE_URL: \${{ secrets.WITHINGS_DATABASE_URL }}
-          GOOGLE_HEALTH_CLIENT_ID: \${{ secrets.GOOGLE_HEALTH_CLIENT_ID }}
-          GOOGLE_HEALTH_CLIENT_SECRET: \${{ secrets.GOOGLE_HEALTH_CLIENT_SECRET }}
-          GOOGLE_HEALTH_REFRESH_TOKEN: \${{ secrets.GOOGLE_HEALTH_REFRESH_TOKEN }}
+          HEVY_API_KEY: ${{ secrets.HEVY_API_KEY }}
+          WITHINGS_DATABASE_URL: ${{ secrets.WITHINGS_DATABASE_URL }}
+          GOOGLE_HEALTH_CLIENT_ID: ${{ secrets.GOOGLE_HEALTH_CLIENT_ID }}
+          GOOGLE_HEALTH_CLIENT_SECRET: ${{ secrets.GOOGLE_HEALTH_CLIENT_SECRET }}
+          GOOGLE_HEALTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_HEALTH_REFRESH_TOKEN }}
         run: python scripts/19_sync_exercise_timeline.py --days 60
