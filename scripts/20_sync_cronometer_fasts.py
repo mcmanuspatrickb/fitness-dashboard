@@ -90,8 +90,21 @@ def fetch_history(start: date, end: date, session=None):
                 numeric_fields = [key for key, value in stats.items()
                                   if isinstance(value, (int, float)) and not isinstance(value, bool)]
                 positive_fields = [key for key in numeric_fields if stats[key] > 0]
+                nested = stats.get("fastingStats")
+                if isinstance(nested, dict):
+                    nested_fields = sorted(nested.keys())
+                    nested_positive = sorted(k for k, v in nested.items()
+                                             if isinstance(v, (int, float))
+                                             and not isinstance(v, bool) and v > 0)
+                    nested_shape = {"type": "dict", "fields": nested_fields,
+                                    "positive_numeric_fields": nested_positive}
+                elif isinstance(nested, list):
+                    nested_shape = {"type": "list", "count": len(nested)}
+                else:
+                    nested_shape = {"type": type(nested).__name__}
                 print(f"Read-only fasting stats diagnostic: keys={sorted(stats)}; "
-                      f"numeric_fields={numeric_fields}; positive_fields={positive_fields}")
+                      f"numeric_fields={numeric_fields}; positive_fields={positive_fields}; "
+                      f"fasting_stats_shape={nested_shape}")
             else:
                 print("Read-only fasting stats diagnostic: unexpected response type")
         except (requests.RequestException, ValueError, TypeError):
