@@ -1,4 +1,5 @@
 name: Manual Cronometer Fasting Probe
+# One-time nested statistics response validation; remove this comment after testing.
 
 on:
   push:
