@@ -127,7 +127,7 @@ class CoachingSafeguardTests(unittest.TestCase):
         self.assertIn("provisional, not actionable", text)
         self.assertIn("Fictional extended fast", text)
         self.assertIn("PROVISIONAL", html)
-        self.assertIn("LOW FASTING CONFOUNDED", html)
+        self.assertIn("Low Fasting Confounded", html)
 
 
 if __name__ == "__main__":
