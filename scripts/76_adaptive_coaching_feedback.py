@@ -304,7 +304,8 @@ def _evaluate_history(history: pd.DataFrame, analysis_end: date) -> pd.DataFrame
             }
             for horizon, first_day, last_day in [(7, 1, 7), (14, 8, 14), (28, 21, 28)]:
                 status_col = f"outcome{horizon}_status"
-                existing = str(row.get(status_col, "") or "").upper()
+                previous_value = row.get(status_col)
+                existing = "" if pd.isna(previous_value) else str(previous_value).upper()
                 # Recalculate mature outcomes when late data or newly imported
                 # fasting intervals change the evidence. Revision history is append-only.
                 due_date = decision_date + timedelta(days=last_day)
