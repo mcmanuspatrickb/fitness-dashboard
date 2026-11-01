@@ -28,6 +28,15 @@ class FastingEvidenceTests(unittest.TestCase):
         self.assertTrue(daily[date(2026, 10, 27)]["refeed"])
         self.assertFalse(daily[date(2026, 10, 24)]["refeed"])
 
+    def test_dst_borderline_24_hour_threshold_uses_elapsed_hours(self):
+        berlin = ZoneInfo("Europe/Berlin")
+        # Wall clock advances only 23h15m; elapsed UTC time is 24h15m.
+        start = datetime(2026, 10, 24, 23, 30, tzinfo=berlin)
+        end = datetime(2026, 10, 25, 22, 45, tzinfo=berlin)
+        rows = [{"start_at": start, "end_at": end}]
+        daily = evidence.exposure_by_day(date(2026, 10, 25), date(2026, 10, 25), rows)
+        self.assertTrue(daily[date(2026, 10, 25)]["extended_fast"])
+
     def test_regular_intermittent_fast_is_not_extended(self):
         start = datetime(2026, 10, 21, 20, tzinfo=timezone.utc)
         end = start + timedelta(hours=16)
