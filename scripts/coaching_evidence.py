@@ -70,6 +70,11 @@ def exposure_by_day(
             begin, end = row["start_at"], row.get("end_at")
             if begin.tzinfo is None or (end is not None and end.tzinfo is None):
                 continue
+            # Always compare/subtract in UTC. Python arithmetic between
+            # two datetimes with the SAME ZoneInfo can use wall-clock hours
+            # across DST, which would misclassify a borderline 24-hour fast.
+            begin = begin.astimezone(timezone.utc)
+            end = end.astimezone(timezone.utc) if end is not None else None
             real_end = end if end is not None else right
             elapsed = (real_end - begin).total_seconds() / 3600.0
             overlap = max(0.0, (min(right, real_end) - max(left, begin)).total_seconds() / 3600.0)
