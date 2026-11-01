@@ -77,6 +77,7 @@ def _build(status: str, snapshot: dict[str, Any]) -> tuple[str, str]:
     states = snapshot.get("states", {})
     body = snapshot.get("body", {})
     energy = snapshot.get("energy", {})
+    fasting = snapshot.get("fasting", {})
     nutrition = snapshot.get("nutrition", {})
     adherence = snapshot.get("adherence", {})
     strength = snapshot.get("strength", {})
@@ -113,6 +114,8 @@ def _build(status: str, snapshot: dict[str, Any]) -> tuple[str, str]:
         "",
         f"Data status: {status.upper()}",
         f"Analysis date: {snapshot.get('analysis_date', 'n/a')}",
+        f"Snapshot generated: {snapshot.get('generated_at', 'n/a')}",
+        f"Calorie plan status: {'REVIEW REQUIRED — PROVISIONAL' if decision.get('review_required') else 'actionable per canonical snapshot'}",
         f"Phase: {_state(snapshot.get('phase'))}",
         "",
         "CANONICAL STATUS",
@@ -124,7 +127,8 @@ def _build(status: str, snapshot: dict[str, Any]) -> tuple[str, str]:
         "",
         "THIS WEEK'S PLAN",
         "----------------",
-        f"Calories: {_state(decision.get('action'))} {_num(decision.get('calorie_adjustment'), 0, ' kcal/day')} | actionable intake {_num(decision.get('target_intake'), 0, ' kcal/day')}",
+        f"Calories: {_state(decision.get('action'))} {_num(decision.get('calorie_adjustment'), 0, ' kcal/day')} | {'provisional, not actionable' if decision.get('review_required') else 'actionable'} intake {_num(decision.get('target_intake'), 0, ' kcal/day')}",
+        f"Theoretical model intake: {_num(decision.get('theoretical_model_intake'), 0, ' kcal/day')} (separate from operational target)",
         f"Protein: {target_text}",
         "Resistance training: 2 productive sessions",
         "Movement: ~7,000 steps/day floor; ~8,000+ preferred when recovery allows",
@@ -145,6 +149,9 @@ def _build(status: str, snapshot: dict[str, Any]) -> tuple[str, str]:
         f"42-day maintenance estimate: {_num(e42.get('estimated_tdee'), 0, ' kcal/day')}",
         f"Planning maintenance: {_num(energy.get('planning_tdee'), 0, ' kcal/day')} | range {tdee_range}",
         f"28/42-day agreement: {_state(energy.get('stability'))}",
+        f"TDEE evidence confidence: {_state(energy.get('confidence'))} (overlapping windows are not independent)",
+        f"Fasting evidence: {_state(fasting.get('evidence_quality'))}; extended fast/refeed days 28d: {fasting.get('extended_or_refeed_days_28', 'n/a')}",
+        f"Fasting data last synced: {fasting.get('last_synced_at', 'n/a')}",
         "",
         "ADHERENCE / RECOVERY",
         "--------------------",
@@ -173,6 +180,10 @@ def _build(status: str, snapshot: dict[str, Any]) -> tuple[str, str]:
                 f"{lift.get('label', lift.get('target_lift', 'Lift'))}: {_num(lift.get('current_best_e1rm'), 1, ' kg')} vs {_num(lift.get('prior_best_e1rm'), 1, ' kg')} | {_state(lift.get('direction'))}"
             )
 
+    if decision.get("review_required"):
+        lines.extend(["", "SAFETY REVIEW REQUIRED", "----------------------",
+                      str(decision.get("review_reason") or fasting.get("note") or "Fasting evidence uncertain."),
+                      "Do not treat the provisional calorie target as a new automatic prescription."])
     lines.extend([
         "",
         "PERSONAL LEARNING",
@@ -221,6 +232,8 @@ def _build(status: str, snapshot: dict[str, Any]) -> tuple[str, str]:
 <h2>Weekly Coaching Summary</h2>
 <p><strong>Data status:</strong> {escape(status.upper())}<br>
 <strong>Analysis date:</strong> {escape(str(snapshot.get('analysis_date', 'n/a')))}<br>
+<strong>Snapshot generated:</strong> {escape(str(snapshot.get('generated_at', 'n/a')))}<br>
+<strong>Calorie plan:</strong> {escape('REVIEW REQUIRED — PROVISIONAL' if decision.get('review_required') else 'Canonical coaching recommendation')}<br>
 <strong>Phase:</strong> {escape(_state(snapshot.get('phase')))}</p>
 
 <h3>Canonical status</h3>
@@ -233,7 +246,8 @@ def _build(status: str, snapshot: dict[str, Any]) -> tuple[str, str]:
 
 <h3>This week's plan</h3>
 <ul>
-<li><strong>Calories:</strong> {escape(_state(decision.get('action')))} {escape(_num(decision.get('calorie_adjustment'), 0, ' kcal/day'))}; actionable intake {escape(_num(decision.get('target_intake'), 0, ' kcal/day'))}</li>
+<li><strong>Calories:</strong> {escape(_state(decision.get('action')))} {escape(_num(decision.get('calorie_adjustment'), 0, ' kcal/day'))}; {escape('provisional — not actionable' if decision.get('review_required') else 'actionable')} intake {escape(_num(decision.get('target_intake'), 0, ' kcal/day'))}</li>
+<li><strong>Theoretical model intake:</strong> {escape(_num(decision.get('theoretical_model_intake'), 0, ' kcal/day'))}; separate from operational target</li>
 <li><strong>Protein:</strong> {escape(target_text)}</li>
 <li><strong>Resistance training:</strong> 2 productive sessions</li>
 <li><strong>Movement:</strong> ~7,000/day floor; ~8,000+ preferred when recovery allows</li>
@@ -254,7 +268,10 @@ def _build(status: str, snapshot: dict[str, Any]) -> tuple[str, str]:
 <p>28-day maintenance: <strong>{escape(_num(e28.get('estimated_tdee'), 0, ' kcal/day'))}</strong><br>
 42-day maintenance: <strong>{escape(_num(e42.get('estimated_tdee'), 0, ' kcal/day'))}</strong><br>
 Planning maintenance: <strong>{escape(_num(energy.get('planning_tdee'), 0, ' kcal/day'))}</strong> ({escape(tdee_range)})<br>
-28/42-day agreement: <strong>{escape(_state(energy.get('stability')))}</strong></p>
+28/42-day agreement: <strong>{escape(_state(energy.get('stability')))}</strong><br>
+TDEE evidence confidence: <strong>{escape(_state(energy.get('confidence')))}</strong> (overlapping windows are not independent)<br>
+Fasting evidence: <strong>{escape(_state(fasting.get('evidence_quality')))}</strong>; extended fast/refeed days (28d): {fasting.get('extended_or_refeed_days_28', 'n/a')}<br>
+Fasting last synced: {escape(str(fasting.get('last_synced_at', 'n/a')))}</p>
 
 <h3>Adherence / recovery</h3>
 <ul>
@@ -280,6 +297,7 @@ Planning maintenance: <strong>{escape(_num(energy.get('planning_tdee'), 0, ' kca
 Personal-response associations cannot change calories until at least {personal.get('adjustment_minimum', 12)} comparable blocks exist.<br>
 Adaptive feedback history: {feedback.get('history_events', 0)} events; {feedback.get('mature_28d_events', 0)} matured 21-28 day effectiveness outcomes.</p>
 
+{("<p><strong>Safety review required:</strong> " + escape(str(decision.get("review_reason") or fasting.get("note") or "Uncertain fasting evidence")) + " Do not treat this as an automatic calorie prescription.</p>") if decision.get("review_required") else ""}
 <h3>Interpretation</h3><ul>{li(interpretation or ['No integrated interpretation available.'])}</ul>
 <h3>Next-week priorities</h3><ul>{li(priorities or ['Maintain the current plan.'])}</ul>
 <p style="color:#666;font-size:0.9em;">BIA fat-free mass is supporting evidence, not a direct muscle measurement. The email and Streamlit coaching status use the same canonical snapshot. Seven-day follow-up is mainly an adherence/recovery check; later 21-28 day windows are used for intervention effectiveness.</p>

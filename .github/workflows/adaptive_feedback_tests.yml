@@ -5,6 +5,12 @@ on:
     paths:
       - "scripts/76_adaptive_coaching_feedback.py"
       - "tests/test_adaptive_coaching_feedback.py"
+      - "tests/test_coaching_evidence.py"
+      - "tests/test_coaching_safeguards.py"
+      - "scripts/coaching_evidence.py"
+      - "scripts/75_personal_response_analysis.py"
+      - "scripts/79_canonical_coaching_engine.py"
+      - "scripts/111_build_coaching_summary.py"
       - ".github/workflows/adaptive_feedback_tests.yml"
   workflow_dispatch:
 
@@ -27,4 +33,7 @@ jobs:
         run: pip install -r weekly_requirements.txt
 
       - name: Test adaptive coaching feedback
-        run: python -m unittest discover -s tests -p "test_adaptive_coaching_feedback.py" -v
+        run: |
+          python -m unittest discover -s tests -p "test_adaptive_coaching_feedback.py" -v
+          python -m unittest discover -s tests -p "test_coaching_evidence.py" -v
+          python -m unittest discover -s tests -p "test_coaching_safeguards.py" -v

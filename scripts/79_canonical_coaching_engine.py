@@ -12,6 +12,7 @@ import pandas as pd
 import psycopg
 
 from report_context import load_report_context
+from coaching_evidence import fetch_intervals, assess_fasting
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -41,16 +42,23 @@ EXCLUDED_SET_TYPES = {
 # so this remains a transparent training-dose signal rather than pretending to
 # know fractional stimulus for every secondary muscle.
 MUSCLE_PATTERNS: list[tuple[str, str]] = [
-    ("Shoulders", r"\b(overhead|military|shoulder press|lateral raise|rear delt|face pull)\b"),
-    ("Chest", r"\b(bench press|chest press|pec deck|chest fly|cable fly|push[ -]?up)\b"),
-    ("Back", r"\b(row|pulldown|pull[ -]?up|chin[ -]?up|lat pull)\b"),
-    ("Quads", r"\b(back squat|barbell squat|front squat|leg press|leg extension|lunge|split squat|hack squat)\b"),
-    ("Posterior chain", r"\b(deadlift|romanian|rdl|leg curl|hamstring|hip thrust|glute bridge)\b"),
+    ("Shoulders", r"\b(overhead|military|shoulder press|push press|lateral raise|rear delt|face pull)\b"),
+    ("Chest", r"\b(bench press|chest press|pec deck|chest fly|cable fly|push[ -]?up|chest dip)\b"),
+    ("Back", r"\b(row|pulldown|pull[ -]?up|chin[ -]?up|lat pull|back fly)\b"),
+    ("Quads", r"\b(back squat|barbell squat|front squat|leg press|leg extension|lunge|split squat|hack squat|pistol squat|cossack squat|step[ -]?up)\b"),
+    ("Posterior chain", r"\b(deadlift|romanian|rdl|leg curl|hamstring|hip thrust|glute bridge|kettlebell swing)\b"),
     ("Biceps", r"\b(biceps|curl)\b"),
-    ("Triceps", r"\b(triceps|pushdown|skull crusher|extension)\b"),
+    ("Triceps", r"\b(triceps|pushdown|skull ?crusher|extension)\b"),
     ("Calves", r"\b(calf|calves)\b"),
-    ("Core", r"\b(crunch|plank|ab wheel|abdominal|hanging leg raise|sit[ -]?up)\b"),
+    ("Core", r"\b(crunch|plank|ab wheel|abdominal|hanging leg raise|sit[ -]?up|deadbug)\b"),
 ]
+
+# Plyometrics and mobility are useful training but not hypertrophy working sets.
+# Exclude by title before counting a resistance-training dose.
+NON_STRENGTH_EXERCISES = re.compile(
+    r"\b(box jump|vertical jump|cat cow|thoracic rotation|windshield wipers|clamshell|mobility|stretch)\b",
+    flags=re.IGNORECASE,
+)
 
 
 def _load_json(path: Path, default: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -236,7 +244,14 @@ def _training_dose(end_date: date) -> dict[str, Any]:
     frame["weight_kg"] = pd.to_numeric(frame["weight_kg"], errors="coerce")
     frame["rpe"] = pd.to_numeric(frame["rpe"], errors="coerce")
     frame["set_type_norm"] = frame["set_type"].map(_normalize_set_type)
-    frame["working"] = (~frame["set_type_norm"].isin(EXCLUDED_SET_TYPES)) & frame["reps"].fillna(0).gt(0)
+    frame["excluded_non_strength"] = frame["exercise_title"].fillna("").map(
+        lambda title: bool(NON_STRENGTH_EXERCISES.search(str(title)))
+    )
+    frame["working"] = (
+        (~frame["set_type_norm"].isin(EXCLUDED_SET_TYPES))
+        & frame["reps"].fillna(0).gt(0)
+        & (~frame["excluded_non_strength"])
+    )
     work = frame[frame["working"]].copy()
     if work.empty:
         return {"groups": [], "unmapped_working_sets_28d": 0, "rpe_coverage_pct": None}
@@ -263,6 +278,7 @@ def _training_dose(end_date: date) -> dict[str, Any]:
     return {
         "groups": rows,
         "unmapped_working_sets_28d": unmapped,
+        "excluded_non_strength_sets_28d": int(frame["excluded_non_strength"].sum()),
         "rpe_coverage_pct": rpe_coverage,
         "method": "Primary-muscle working-set count; compounds are counted once. Hard sets require logged RPE >=7.5.",
     }
@@ -447,6 +463,17 @@ def main() -> None:
 
     recent_weight = _float(weekly.get("recent_weight"))
     energy = _energy_consensus(end_date, recent_weight)
+    fasting_intervals, fasting_source = fetch_intervals()
+    fasting = assess_fasting(end_date, fasting_intervals, fasting_source)
+    # The 28/42-day windows overlap substantially: low difference is NOT
+    # independent corroboration of TDEE accuracy, especially during fasting.
+    energy["agreement"] = energy["stability"]
+    energy["confidence"] = (
+        "LOW_FASTING_CONFOUNDED" if fasting["evidence_quality"] == "FASTING_CONFOUNDED"
+        else "UNKNOWN_FASTING_HISTORY" if fasting["review_required"]
+        else "LIMITED"
+    )
+    energy["overlapping_windows"] = True
     adherence = _adherence(context)
     training_dose = _training_dose(end_date)
     recovery = _recovery_baselines(context)
@@ -512,6 +539,9 @@ def main() -> None:
 
     recovery_state = str(guardrail.get("status", "STABLE"))
     decision = {
+        "review_required": bool(fasting["review_required"]),
+        "actionable": not bool(fasting["review_required"]),
+        "review_reason": fasting["note"] if fasting["review_required"] else None,
         "action": calorie.get("action", "HOLD"),
         "calorie_adjustment": calorie.get("final_calorie_adjustment", calorie.get("original_calorie_adjustment", 0)),
         "target_intake": calorie.get("target_intake"),
@@ -538,12 +568,15 @@ def main() -> None:
         interpretation.append("Reassuring evidence: " + "; ".join(reassuring_evidence[:4]) + ".")
     if concern_evidence:
         interpretation.append("Watch evidence: " + "; ".join(concern_evidence[:4]) + ".")
+    if fasting["review_required"]:
+        interpretation.append("Calorie recommendation requires review: " + fasting["note"])
     if energy.get("planning_tdee") is not None:
         lo, hi = energy.get("planning_range_low"), energy.get("planning_range_high")
         interpretation.append(
             f"Planning maintenance is about {energy['planning_tdee']:.0f} kcal/day"
             + (f" with a working range of roughly {lo:.0f}-{hi:.0f} kcal/day" if lo is not None and hi is not None else "")
-            + f"; 28/42-day agreement is {str(energy.get('stability')).lower()}."
+            + f"; 28/42-day agreement is {str(energy.get('stability')).lower()}, "
+            + f"but independent confidence is {energy['confidence'].lower()}."
         )
     if grip_count < 4:
         interpretation.append(f"Grip has {grip_count} standardized measurement(s), so it is recorded but not yet used as a trend signal.")
@@ -551,13 +584,14 @@ def main() -> None:
         interpretation.append(f"Grip short-term trend is {grip_trend:+.1f}% and is included as an independent functional cross-check.")
 
     snapshot = {
-        "schema_version": 1,
+        "schema_version": 2,
         "analysis_date": str(end_date),
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "phase": str(phase_info.get("current_phase", "cut")),
         "phase_suggestion": phase_info.get("suggestion"),
         "data_quality": {
             "confidence": coverage.get("confidence", "LOW"),
+            "tdee_evidence_confidence": energy["confidence"],
             "checks_passed": coverage.get("checks_passed"),
             "checks_total": coverage.get("checks_total"),
         },
@@ -579,6 +613,7 @@ def main() -> None:
             "latest_waist_date": performance.get("latest_waist_date"),
         },
         "energy": energy,
+        "fasting": fasting,
         "nutrition": {
             "calories_7d": _float(weekly.get("recent_calories")),
             "protein_7d_g": _float(weekly.get("recent_protein")),
@@ -613,6 +648,8 @@ def main() -> None:
         "notes": [
             "BIA fat-free mass is supporting evidence, not a direct measurement of contractile muscle.",
             "The canonical snapshot is the authoritative coaching interpretation; dashboard charts remain exploratory views of the underlying data.",
+            "Overlapping 28/42-day TDEE agreement is not evidence of accuracy; fasting/re-feeding can affect scale weight independent of fat.",
+            "Theoretical model intake is distinct from the operational target. Review-required targets are not actionable without human approval.",
             "Personal-response associations are not allowed to influence calorie adjustments until at least 12 comparable training-active normal-diet blocks exist.",
         ],
     }
@@ -630,7 +667,9 @@ def main() -> None:
         "Decision", "--------",
         f"action: {decision['action']}",
         f"calorie adjustment: {decision['calorie_adjustment']}",
-        f"target intake: {decision['target_intake']}", "",
+        f"target intake: {decision['target_intake']}",
+        f"review required: {decision['review_required']}",
+        f"TDEE confidence: {energy['confidence']}", "",
         "Priorities", "----------",
     ]
     lines.extend(f"- {item}" for item in snapshot["priorities"])
