@@ -76,3 +76,18 @@ coaching decisions.
 - A stale or missing fasting sync produces a review-required recommendation.
   This conservative guard is intentional and should be evaluated before any
   production deployment.
+
+## Real-data review findings and follow-up protections
+
+- The attached weekly coaching **packet** must carry the same actionability
+  warning as the canonical email, even though it retains the original model
+  trace for auditing. It must not label a provisional target actionable.
+- Overhead sit-ups and overhead squats are not shoulder-press working sets;
+  overhead press remains correctly mapped to shoulders. Plural push-ups count
+  as chest work unless specifically classified as non-strength mobility.
+- The personal-response threshold stays at 12 blocks. **Automatic
+  personal-response calorie overrides remain disabled** until historical
+  fasting coverage is validated separately. This prevents a legacy 12-block
+  count alone from enabling learning-based interventions.
+- When evaluating changes with real observations, perform read-only queries
+  and retain private health measurements outside the public GitHub repository.

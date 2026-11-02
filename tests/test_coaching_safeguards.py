@@ -28,6 +28,8 @@ feedback = load_script("feedback_safeguards", "76_adaptive_coaching_feedback.py"
 response = load_script("response_safeguards", "75_personal_response_analysis.py")
 canonical = load_script("canonical_safeguards", "79_canonical_coaching_engine.py")
 email = load_script("weekly_email_safeguards", "111_build_coaching_summary.py")
+packet = load_script("packet_safeguards", "81_build_weekly_coaching_packet.py")
+calories = load_script("calorie_gate_safeguards", "73_adaptive_calorie_recommendation.py")
 
 
 class CoachingSafeguardTests(unittest.TestCase):
@@ -91,6 +93,10 @@ class CoachingSafeguardTests(unittest.TestCase):
         self.assertTrue(bool(canonical.NON_STRENGTH_EXERCISES.search("Box Jump")))
         self.assertTrue(bool(canonical.NON_STRENGTH_EXERCISES.search("Cat Cow Stretch")))
         self.assertFalse(bool(canonical.NON_STRENGTH_EXERCISES.search("Barbell Back Squat")))
+        self.assertEqual(canonical._muscle_group("Overhead Single Arm Sit-up"), "Core")
+        self.assertEqual(canonical._muscle_group("Kettlebell Single Arm Overhead Squat"), "Quads")
+        self.assertEqual(canonical._muscle_group("Clap Push Ups"), "Chest")
+        self.assertEqual(canonical._muscle_group("Overhead Press (Dumbbell)"), "Shoulders")
 
     def test_14d_response_block_excludes_verified_fasting_refeed(self):
         days = pd.date_range("2026-10-01", periods=14)
@@ -110,6 +116,24 @@ class CoachingSafeguardTests(unittest.TestCase):
         self.assertEqual(len(blocks), 1)
         self.assertEqual(blocks.iloc[0]["fasting_days"], 5)
         self.assertEqual(blocks.iloc[0]["verified_fasting_or_refeed_days"], 5)
+
+    def test_attached_packet_never_labels_provisional_target_actionable(self):
+        snapshot = {"decision": {"review_required": True}}
+        cal, feedback, provisional = packet.packet_calorie_sections(
+            snapshot,
+            "Action: INCREASE\nCalorie adjustment: +150 kcal/day\nactionable target intake: 1425 kcal/day",
+            "actionable target intake: 1425 kcal/day",
+        )
+        self.assertTrue(provisional)
+        self.assertIn("PROVISIONAL MODEL OUTPUT", cal)
+        self.assertNotIn("actionable target intake:", cal)
+        self.assertNotIn("actionable target intake:", feedback)
+        self.assertFalse(packet.packet_calorie_sections(
+            {"decision": {"review_required": False}}, "Action: HOLD", "No changes")[2])
+        self.assertTrue(packet.packet_calorie_sections({}, "", "")[2])
+
+    def test_future_personalized_calorie_adjustments_require_review(self):
+        self.assertFalse(calories.PERSONAL_AUTO_ADJUSTMENTS_ENABLED)
 
     def test_email_shared_decision_is_provisional_if_review_required(self):
         snapshot = {

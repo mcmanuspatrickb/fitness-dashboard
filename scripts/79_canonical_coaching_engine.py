@@ -42,10 +42,10 @@ EXCLUDED_SET_TYPES = {
 # so this remains a transparent training-dose signal rather than pretending to
 # know fractional stimulus for every secondary muscle.
 MUSCLE_PATTERNS: list[tuple[str, str]] = [
-    ("Shoulders", r"\b(overhead|military|shoulder press|push press|lateral raise|rear delt|face pull)\b"),
-    ("Chest", r"\b(bench press|chest press|pec deck|chest fly|cable fly|push[ -]?up|chest dip)\b"),
+    ("Shoulders", r"\b(overhead press|military|shoulder press|push press|lateral raise|rear delt|face pull)\b"),
+    ("Chest", r"\b(bench press|chest press|pec deck|chest fly|cable fly|push[ -]?ups?|chest dip)\b"),
     ("Back", r"\b(row|pulldown|pull[ -]?up|chin[ -]?up|lat pull|back fly)\b"),
-    ("Quads", r"\b(back squat|barbell squat|front squat|leg press|leg extension|lunge|split squat|hack squat|pistol squat|cossack squat|step[ -]?up)\b"),
+    ("Quads", r"\b(back squat|barbell squat|front squat|overhead squat|leg press|leg extension|lunge|split squat|hack squat|pistol squat|cossack squat|step[ -]?up)\b"),
     ("Posterior chain", r"\b(deadlift|romanian|rdl|leg curl|hamstring|hip thrust|glute bridge|kettlebell swing)\b"),
     ("Biceps", r"\b(biceps|curl)\b"),
     ("Triceps", r"\b(triceps|pushdown|skull ?crusher|extension)\b"),
@@ -359,7 +359,7 @@ def _adherence(context: dict[str, Any]) -> dict[str, Any]:
 
 
 def _personal_evidence() -> dict[str, Any]:
-    result = {"comparable_blocks": 0, "evidence_tier": "BUILDING", "adjustment_minimum": PERSONAL_ADJUSTMENT_MIN_BLOCKS}
+    result = {"comparable_blocks": 0, "evidence_tier": "BUILDING", "adjustment_minimum": PERSONAL_ADJUSTMENT_MIN_BLOCKS, "adjustment_eligible": False, "adjustment_gate": "PENDING_HISTORICAL_FASTING_VALIDATION"}
     if not PERSONAL_BLOCKS.exists():
         return result
     try:
@@ -650,7 +650,7 @@ def main() -> None:
             "The canonical snapshot is the authoritative coaching interpretation; dashboard charts remain exploratory views of the underlying data.",
             "Overlapping 28/42-day TDEE agreement is not evidence of accuracy; fasting/re-feeding can affect scale weight independent of fat.",
             "Theoretical model intake is distinct from the operational target. Review-required targets are not actionable without human approval.",
-            "Personal-response associations are not allowed to influence calorie adjustments until at least 12 comparable training-active normal-diet blocks exist.",
+            "Personal-response associations cannot influence calorie adjustments while historical fasting validation is pending, even if 12 comparable blocks exist.",
         ],
     }
     snapshot = _json_safe(snapshot)

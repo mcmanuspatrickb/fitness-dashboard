@@ -22,6 +22,9 @@ GUARDRAIL_JSON = REPORTS_DIR / "cut_stress_guardrail.json"
 
 ENERGY_KCAL_PER_KG = 7700.0
 MIN_PERSONAL_BLOCKS = 12
+# Explicit safety gate: existing legacy training-active blocks are not yet
+# independently verified against full historical Cronometer fasting coverage.
+PERSONAL_AUTO_ADJUSTMENTS_ENABLED = False
 MIN_PERSONAL_WORKOUTS = 2
 MAX_WEEKLY_ADJUSTMENT = 150
 
@@ -147,7 +150,7 @@ def _load_personal_response() -> dict[str, Any]:
     active = active.dropna(subset=["fat_loss_kg", "lean_retention_kg"])
     result["active_blocks"] = int(len(active))
     result["needed"] = max(0, MIN_PERSONAL_BLOCKS - len(active))
-    result["status"] = "READY" if len(active) >= MIN_PERSONAL_BLOCKS else "BUILDING"
+    result["status"] = ("READY" if PERSONAL_AUTO_ADJUSTMENTS_ENABLED else "READY_REVIEW_REQUIRED") if len(active) >= MIN_PERSONAL_BLOCKS else "BUILDING"
     if result["status"] == "READY":
         result["associations"] = {
             "calories_lean": _spearman(active, "avg_calories", "lean_retention_kg"),
@@ -257,6 +260,8 @@ def main() -> None:
                 notes.append("Comparable personal history links higher calories with better lean retention, so the target deficit is nudged smaller.")
             elif (lean_watch or strength_concern) and assoc.get("protein_lean") is not None and assoc["protein_lean"] >= 0.35:
                 notes.append("Comparable personal history points more strongly toward protein than calories for lean retention.")
+        elif personal.get("status") == "READY_REVIEW_REQUIRED":
+            notes.append("Personal-response threshold reached, but automatic changes remain disabled until historical fasting evidence is independently verified.")
         else:
             notes.append(f"Personal-response evidence is still building ({personal.get('active_blocks', 0)}/{MIN_PERSONAL_BLOCKS} comparable blocks), so it does not change the target yet.")
 
