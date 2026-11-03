@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import csv
 import re
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -10,6 +11,7 @@ import duckdb
 import pandas as pd
 
 from report_context import load_report_context
+from coaching_evidence import fetch_intervals, overlaps_extended_fast
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -23,6 +25,7 @@ RECOMMENDATION_PATH = REPORTS_DIR / "adaptive_calorie_recommendation.txt"
 RECOMMENDATION_JSON = REPORTS_DIR / "adaptive_calorie_recommendation.json"
 FEEDBACK_REPORT = REPORTS_DIR / "adaptive_coaching_feedback.txt"
 HISTORY_PATH = STATE_DIR / "adaptive_coaching_history.csv"
+REVISION_AUDIT_PATH = STATE_DIR / "adaptive_feedback_revisions.csv"
 STRENGTH_CSV = REPORTS_DIR / "strength_progress_weekly.csv"
 PHASE_JSON = REPORTS_DIR / "current_phase.json"
 
@@ -282,6 +285,8 @@ def _evaluate_history(history: pd.DataFrame, analysis_end: date) -> pd.DataFrame
         return history
     con = duckdb.connect(str(DB_PATH), read_only=True)
     now_utc = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    fasting_intervals, fasting_source = fetch_intervals()
+    revisions: list[dict[str, str]] = []
     try:
         for idx, row in history.iterrows():
             parsed_date = pd.to_datetime(row["decision_date"], errors="coerce")
@@ -299,9 +304,10 @@ def _evaluate_history(history: pd.DataFrame, analysis_end: date) -> pd.DataFrame
             }
             for horizon, first_day, last_day in [(7, 1, 7), (14, 8, 14), (28, 21, 28)]:
                 status_col = f"outcome{horizon}_status"
-                existing = str(row.get(status_col, "") or "").upper()
-                if existing in {"HELPFUL", "NEUTRAL", "ADVERSE", "INCONCLUSIVE", "INSUFFICIENT_DATA"}:
-                    continue
+                previous_value = row.get(status_col)
+                existing = "" if pd.isna(previous_value) else str(previous_value).upper()
+                # Recalculate mature outcomes when late data or newly imported
+                # fasting intervals change the evidence. Revision history is append-only.
                 due_date = decision_date + timedelta(days=last_day)
                 if analysis_end < due_date:
                     continue
@@ -315,8 +321,26 @@ def _evaluate_history(history: pd.DataFrame, analysis_end: date) -> pd.DataFrame
                 sleep_adherence = "UNKNOWN" if metrics["sleep"] is None or sleep_target is None else ("FOLLOWED" if metrics["sleep"] >= sleep_target - 0.2 else "NOT_FOLLOWED")
                 training_adherence = _target_adherence(metrics["workouts"], _float(row["target_workouts"]), 1.0)
                 steps_adherence = _target_adherence(metrics["steps"], _float(row["target_steps"]), 0.9)
-                confounded = _confounded(history, idx, decision_date, due_date)
+                fasting_confounded = (
+                    overlaps_extended_fast(decision_date + timedelta(days=first_day), due_date, fasting_intervals)
+                    if fasting_source == "AVAILABLE" else False
+                )
+                confounded = _confounded(history, idx, decision_date, due_date) or fasting_confounded
                 status, deltas = _classify(action, calorie_adherence, metrics, baseline, strength_down, confounded)
+                old_confounded = str(row.get(f"outcome{horizon}_confounded", "")).lower() in {"true", "1"}
+                if existing in {"HELPFUL", "NEUTRAL", "ADVERSE", "INCONCLUSIVE", "INSUFFICIENT_DATA"} and (
+                    status != existing or confounded != old_confounded
+                ):
+                    revisions.append({
+                        "decision_date": str(decision_date),
+                        "horizon": str(horizon),
+                        "previous_status": existing,
+                        "new_status": status,
+                        "previous_confounded": str(old_confounded),
+                        "new_confounded": str(confounded),
+                        "evidence_through": str(analysis_end),
+                        "reassessed_at_utc": now_utc,
+                    })
 
                 values = {
                     "status": status, "evaluated_date": str(due_date),
@@ -339,7 +363,21 @@ def _evaluate_history(history: pd.DataFrame, analysis_end: date) -> pd.DataFrame
                 history.at[idx, "updated_at_utc"] = now_utc
     finally:
         con.close()
+    history.attrs["revisions"] = revisions
     return history
+
+
+def _append_revisions(revisions: list[dict[str, str]]) -> None:
+    if not revisions:
+        return
+    REVISION_AUDIT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    columns = list(revisions[0])
+    existing = REVISION_AUDIT_PATH.exists()
+    with REVISION_AUDIT_PATH.open("a", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=columns)
+        if not existing:
+            writer.writeheader()
+        writer.writerows(revisions)
 
 
 def _feedback_evidence(history: pd.DataFrame, action: str) -> dict[str, Any]:
@@ -493,6 +531,7 @@ def main() -> None:
         raise RuntimeError("No complete analysis date available.")
 
     history = _evaluate_history(_load_history(), analysis_end)
+    revisions = history.attrs.get("revisions", [])
     evidence = _feedback_evidence(history, parsed["action"])
     original_adjustment = int(parsed["calorie_adjustment"])
     final_adjustment = original_adjustment
@@ -503,6 +542,7 @@ def main() -> None:
     RECOMMENDATION_PATH.write_text(revised_text, encoding="utf-8")
     history = _upsert_event(history, parsed, context, final_adjustment)
     history.to_csv(HISTORY_PATH, index=False)
+    _append_revisions(revisions)
 
     feedback_text = _report(history, parsed, final_adjustment)
     FEEDBACK_REPORT.write_text(feedback_text, encoding="utf-8")

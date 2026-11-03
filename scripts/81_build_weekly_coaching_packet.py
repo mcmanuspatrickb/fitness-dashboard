@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import json
 from pathlib import Path
 
 from report_context import load_report_context
@@ -10,6 +11,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 REPORTS_DIR = PROJECT_ROOT / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 OUT_PATH = REPORTS_DIR / "weekly_coaching_packet.txt"
+
+CANONICAL_JSON = REPORTS_DIR / "canonical_coaching_snapshot.json"
 
 SOURCE_FILES = {
     "canonical": REPORTS_DIR / "canonical_coaching_snapshot.txt",
@@ -23,6 +26,31 @@ SOURCE_FILES = {
     "strength_adjusted": REPORTS_DIR / "strength_adjusted_coaching.txt",
     "strength_analysis": REPORTS_DIR / "strength_progress_analysis.txt",
 }
+
+
+def read_canonical_json(path: Path) -> dict:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        return value if isinstance(value, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def packet_calorie_sections(snapshot: dict, recommendation: str, feedback: str) -> tuple[str, str, bool]:
+    """Keep the attached packet aligned with canonical review/actionability.
+
+    Source reports are left untouched. Missing canonical data fail closed.
+    """
+    needs_review = not snapshot or bool(snapshot.get("decision", {}).get("review_required", True))
+    if not needs_review:
+        return recommendation, feedback, False
+    preface = ("PROVISIONAL MODEL OUTPUT — NOT AN ACTIONABLE CALORIE TARGET. "
+               "The canonical snapshot requires review before any dietary change.\n")
+    recommendation = recommendation.replace("Action:", "Provisional model action:").replace(
+        "Calorie adjustment:", "Provisional model adjustment:")
+    recommendation = recommendation.replace("actionable target intake:", "provisional model intake target:")
+    feedback = feedback.replace("actionable target intake:", "provisional model intake target:")
+    return preface + recommendation, preface + feedback, True
 
 
 def read_text(path: Path) -> str:
@@ -75,11 +103,13 @@ def main() -> None:
         line for line in texts["guardrail"].splitlines()
         if line.startswith("status:") or line.startswith("interpretation:")
     ])
+    snapshot = read_canonical_json(CANONICAL_JSON)
     calorie = section(texts["calorie_recommendation"], "Recommendation")
     calorie_why = section(texts["calorie_recommendation"], "Why")
     feedback_current = section(texts["adaptive_feedback"], "Current Decision")
     feedback_learning = section(texts["adaptive_feedback"], "Learning Status")
     feedback_recent = section(texts["adaptive_feedback"], "Recent Evaluations")
+    calorie, feedback_current, provisional = packet_calorie_sections(snapshot, calorie, feedback_current)
     weekly_interpretation = section(texts["weekly_report"], "Weekly Interpretation")
     next_week_focus = section(texts["weekly_report"], "Next Week Focus")
     four_week = section(texts["weekly_report"], "4-Week Context")
@@ -106,6 +136,14 @@ def main() -> None:
         f"Generated: {datetime.now().isoformat(timespec='seconds')}",
         "",
     ]
+    if provisional:
+        lines.extend([
+            "CALORIE MODEL REVIEW REQUIRED",
+            "============================",
+            "The model's calorie action and operational intake target are provisional.",
+            "Do not use the raw action or target in this packet as an automatic dietary instruction.",
+            "",
+        ])
     add_block(lines, "Canonical Coaching Snapshot", texts["canonical"], "No canonical coaching snapshot available.")
     add_block(lines, "Phase", "\n".join(x for x in [phase_head, phase_body] if x), "No phase analysis available.")
     add_block(lines, "Recovery Guardrail", "\n".join(x for x in [guardrail_head, guardrail_body, guardrail_reassuring] if x), "No recovery guardrail available.")

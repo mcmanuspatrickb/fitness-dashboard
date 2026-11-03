@@ -50,12 +50,17 @@ jobs:
         run: |
           python scripts/95_validate_data_freshness.py
 
-      - name: Persist adaptive coaching history
+      - name: Persist adaptive coaching history and revision audit
         if: success()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add coaching_state/adaptive_coaching_history.csv
+          # Newly created audit CSVs are covered by the repository's *.csv
+          # ignore rule; add explicitly so revisions survive ephemeral runners.
+          if [ -f coaching_state/adaptive_feedback_revisions.csv ]; then
+            git add -f coaching_state/adaptive_feedback_revisions.csv
+          fi
           if ! git diff --cached --quiet; then
             git commit -m "Update adaptive coaching feedback history [skip ci]"
             # The analytics rebuild modifies tracked working files (for example

@@ -5,6 +5,8 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
+from coaching_evidence import fetch_intervals, exposure_by_day
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = PROJECT_ROOT / "db" / "fitness.duckdb"
@@ -70,6 +72,19 @@ def load_daily() -> pd.DataFrame:
     finally:
         con.close()
     frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
+    # Overlay confirmed extended fasting and first-day refeeding from the
+    # manually synced Neon history; never infer fasting from missing meals.
+    intervals, fasting_source = fetch_intervals()
+    frame["verified_extended_or_refeed"] = False
+    if intervals and frame["date"].notna().any():
+        first = frame["date"].min().date()
+        last = frame["date"].max().date()
+        evidence = exposure_by_day(first, last, intervals)
+        frame["verified_extended_or_refeed"] = frame["date"].dt.date.map(
+            lambda day: bool(evidence.get(day, {}).get("extended_fast")
+                             or evidence.get(day, {}).get("refeed"))
+        )
+    frame["fasting_source_status"] = fasting_source
     frame["fasting_state"] = (
         frame["fasting_state"].fillna("normal").astype(str).str.strip().str.lower()
     )
@@ -92,7 +107,8 @@ def build_blocks(frame: pd.DataFrame) -> pd.DataFrame:
 
         if body_days >= MIN_BODY_DAYS and nutrition_days >= MIN_NUTRITION_DAYS:
             fasting_state = block["fasting_state"].fillna("normal").astype(str).str.strip().str.lower()
-            fasting_days = int((~fasting_state.isin(["normal", ""])).sum())
+            verified = block["verified_extended_or_refeed"].fillna(False).astype(bool)
+            fasting_days = int((~fasting_state.isin(["normal", ""]) | verified).sum())
             rows.append(
                 {
                     "start_date": start.date(),
@@ -103,6 +119,8 @@ def build_blocks(frame: pd.DataFrame) -> pd.DataFrame:
                     "sleep_days": int(block["sleep_hours"].notna().sum()),
                     "recovery_days": int(block[["resting_hr", "hrv"]].notna().all(axis=1).sum()),
                     "fasting_days": fasting_days,
+                    "verified_fasting_or_refeed_days": int(verified.sum()),
+                    "fasting_source_status": str(block["fasting_source_status"].iloc[-1]),
                     "weight_change_kg": _slope_change(block, "weight_kg"),
                     "fat_change_kg": _slope_change(block, "fat_mass_kg"),
                     "lean_change_kg": _slope_change(block, "lean_mass_kg"),
@@ -160,6 +178,7 @@ def main() -> None:
         "-------",
         "Exploratory N=1 analysis of complete 14-day periods. It looks for associations between protein, calories, steps, sleep, recovery, and resistance-training frequency versus fat-loss and BIA lean-mass outcomes.",
         "These are associations, not causal effects. BIA lean mass is hydration-sensitive and historical logging quality varies.",
+        "Fasting classification combines legacy intervention flags with verified extended-fast and refeeding days from manually imported Cronometer intervals. No record does NOT prove an older day was fasting-free.",
         "",
         f"Qualifying 14-day blocks: {len(blocks)}",
     ]
