@@ -132,6 +132,16 @@ class CoachingSafeguardTests(unittest.TestCase):
             {"decision": {"review_required": False}}, "Action: HOLD", "No changes")[2])
         self.assertTrue(packet.packet_calorie_sections({}, "", "")[2])
 
+    def test_weekly_action_persists_revision_audit_even_if_csv_is_ignored(self):
+        workflow = (ROOT / ".github" / "workflows" / "weekly_coaching.yml").read_text()
+        self.assertIn("git add coaching_state/adaptive_coaching_history.csv", workflow)
+        self.assertIn(
+            "if [ -f coaching_state/adaptive_feedback_revisions.csv ]; then",
+            workflow,
+        )
+        self.assertIn("git add -f coaching_state/adaptive_feedback_revisions.csv", workflow)
+        self.assertIn("git push origin HEAD:main", workflow)
+
     def test_future_personalized_calorie_adjustments_require_review(self):
         self.assertFalse(calories.PERSONAL_AUTO_ADJUSTMENTS_ENABLED)
 

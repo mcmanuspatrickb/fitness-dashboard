@@ -91,3 +91,13 @@ coaching decisions.
   count alone from enabling learning-based interventions.
 - When evaluating changes with real observations, perform read-only queries
   and retain private health measurements outside the public GitHub repository.
+
+## Feedback audit persistence in the weekly runner
+
+The weekly job stages the tracked adaptive feedback history and explicitly
+force-adds an optional revision audit CSV when present (the repository ignores
+CSV files by default). This ensures reassessed historical outcomes are retained
+across ephemeral GitHub Actions runners rather than vanishing at job teardown.
+The normal automation schedule and email delivery behavior are unchanged in
+this draft; changes to the workflow are not active until separately approved
+and merged.
