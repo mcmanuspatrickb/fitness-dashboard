@@ -7,6 +7,7 @@ on:
       - "tests/test_adaptive_coaching_feedback.py"
       - "tests/test_coaching_evidence.py"
       - "tests/test_coaching_safeguards.py"
+      - "tests/test_coaching_integration.py"
       - "scripts/coaching_evidence.py"
       - "scripts/75_personal_response_analysis.py"
       - "scripts/79_canonical_coaching_engine.py"
@@ -37,3 +38,4 @@ jobs:
           python -m unittest discover -s tests -p "test_adaptive_coaching_feedback.py" -v
           python -m unittest discover -s tests -p "test_coaching_evidence.py" -v
           python -m unittest discover -s tests -p "test_coaching_safeguards.py" -v
+          python -m unittest discover -s tests -p "test_coaching_integration.py" -v
