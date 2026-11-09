@@ -1,0 +1,3 @@
+decision_date,horizon,previous_status,new_status,previous_confounded,new_confounded,evidence_through,reassessed_at_utc
+2026-09-28,28,INCONCLUSIVE,INCONCLUSIVE,False,True,2026-11-07,2026-11-09T14:56:40+00:00
+2026-10-19,7,INCONCLUSIVE,INCONCLUSIVE,False,True,2026-11-07,2026-11-09T14:56:40+00:00
